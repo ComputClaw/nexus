@@ -1,10 +1,10 @@
 # Nexus
 
-A digital assistant backend for [OpenClaw](https://github.com/openclaw/openclaw) agents — email, calendar, and meeting intelligence powered by Microsoft Graph and Fireflies.ai.
+A digital assistant ingestion service for [OpenClaw](https://github.com/openclaw/openclaw) agents — email, calendar, and meeting data from Microsoft Graph and Fireflies.ai.
 
 ## What It Does
 
-Nexus ingests data from your Microsoft 365 environment and meeting transcription services, stages it in Azure Table Storage, and makes it available for an OpenClaw agent to sync into its workspace. The agent gets structured markdown files it can search, reason over, and act on.
+Nexus ingests data from your Microsoft 365 environment and meeting transcription services, stages it in Azure Table Storage, and makes it available for an OpenClaw agent to sync into its workspace. The agent handles the intelligence — Nexus just makes sure the data is there.
 
 **Sources:**
 - 📧 **Email** — Inbox and sent items via Microsoft Graph webhooks
