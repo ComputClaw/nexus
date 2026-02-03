@@ -3,6 +3,7 @@ namespace Nexus.Ingest.Models;
 public sealed class WhitelistRequest
 {
     public List<string> Domains { get; set; } = [];
+    public List<string> Emails { get; set; } = [];
 }
 
 public sealed class WhitelistedDomainDto

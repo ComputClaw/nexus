@@ -33,9 +33,9 @@ public sealed class WhitelistFunction
         if (!ValidateApiKey(req))
             return req.CreateResponse(HttpStatusCode.Unauthorized);
 
-        var domains = await _whitelistService.ListAll(ct);
+        var entries = await _whitelistService.ListAll(ct);
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(domains, ct);
+        await response.WriteAsJsonAsync(entries, ct);
         return response;
     }
 
@@ -49,32 +49,76 @@ public sealed class WhitelistFunction
             return req.CreateResponse(HttpStatusCode.Unauthorized);
 
         var body = await req.ReadFromJsonAsync<WhitelistRequest>(ct);
-        if (body?.Domains == null || body.Domains.Count == 0)
+        if (body == null || (body.Domains.Count == 0 && body.Emails.Count == 0))
         {
             var bad = req.CreateResponse(HttpStatusCode.BadRequest);
-            await bad.WriteStringAsync("Body must contain a 'domains' array", ct);
+            await bad.WriteStringAsync("Body must contain a 'domains' and/or 'emails' array", ct);
             return bad;
         }
 
-        await _whitelistService.AddDomains(body.Domains, addedBy: "manual", ct);
-        _logger.LogInformation("Added {Count} domain(s) to whitelist: {Domains}",
-            body.Domains.Count, string.Join(", ", body.Domains));
+        // Add domains + promote pending emails from those domains
+        if (body.Domains.Count > 0)
+        {
+            var newDomains = await _whitelistService.AddDomainsIfNew(body.Domains, "manual", ct);
+            foreach (var domain in newDomains)
+            {
+                await _whitelistService.PromotePendingByDomain(domain, ct);
+                _logger.LogInformation("Whitelisted domain and promoted pending: {Domain}", domain);
+            }
+
+            // Also re-promote for existing domains (in case pending emails arrived after initial whitelist)
+            var existing = body.Domains.Except(newDomains, StringComparer.OrdinalIgnoreCase);
+            foreach (var domain in existing)
+            {
+                await _whitelistService.PromotePendingByDomain(domain, ct);
+            }
+        }
+
+        // Add emails + promote pending emails from those addresses
+        if (body.Emails.Count > 0)
+        {
+            var newEmails = await _whitelistService.AddEmailsIfNew(body.Emails, "manual", ct);
+            foreach (var email in newEmails)
+            {
+                await _whitelistService.PromotePendingByEmail(email, ct);
+                _logger.LogInformation("Whitelisted email and promoted pending: {Email}", email);
+            }
+
+            // Also re-promote for existing emails
+            var existing = body.Emails.Except(newEmails, StringComparer.OrdinalIgnoreCase);
+            foreach (var email in existing)
+            {
+                await _whitelistService.PromotePendingByEmail(email, ct);
+            }
+        }
+
+        _logger.LogInformation("Whitelist updated: {DomainCount} domain(s), {EmailCount} email(s)",
+            body.Domains.Count, body.Emails.Count);
 
         return req.CreateResponse(HttpStatusCode.Created);
     }
 
     [Function("WhitelistRemove")]
     public async Task<HttpResponseData> Remove(
-        [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "whitelist/{domain}")]
+        [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "whitelist/{type}/{value}")]
         HttpRequestData req,
-        string domain,
+        string type,
+        string value,
         CancellationToken ct)
     {
         if (!ValidateApiKey(req))
             return req.CreateResponse(HttpStatusCode.Unauthorized);
 
-        await _whitelistService.RemoveDomain(domain, ct);
-        _logger.LogInformation("Removed domain from whitelist: {Domain}", domain);
+        if (type.Equals("email", StringComparison.OrdinalIgnoreCase))
+        {
+            await _whitelistService.RemoveEmail(value, ct);
+            _logger.LogInformation("Removed email from whitelist: {Email}", value);
+        }
+        else
+        {
+            await _whitelistService.RemoveDomain(value, ct);
+            _logger.LogInformation("Removed domain from whitelist: {Domain}", value);
+        }
 
         return req.CreateResponse(HttpStatusCode.NoContent);
     }

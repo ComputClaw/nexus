@@ -33,7 +33,7 @@ public sealed class BlobStorageService
     public async Task<string> StoreEmailBody(Message message, CancellationToken ct)
     {
         var date = message.ReceivedDateTime ?? message.SentDateTime ?? DateTimeOffset.UtcNow;
-        var shortId = SanitizeId(message.Id ?? "unknown", 20);
+        var shortId = SanitizeId(message.Id ?? "unknown", 80);
         var blobName = $"{date:yyyy-MM}/{shortId}.txt";
 
         var content = HtmlStripper.StripHtml(message.Body?.Content);
