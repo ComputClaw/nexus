@@ -14,7 +14,7 @@ public sealed class WhitelistService
 
     public WhitelistService(TableServiceClient tableService)
     {
-        _whitelistTable = tableService.GetTableClient("WhitelistedDomains");
+        _whitelistTable = tableService.GetTableClient("Whitelist");
         _pendingTable = tableService.GetTableClient("PendingEmails");
         _itemsTable = tableService.GetTableClient("Items");
     }
