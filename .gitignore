@@ -21,3 +21,5 @@ Thumbs.db
 # Build artifacts
 deploy.zip
 *.nupkg
+bin/
+obj/

@@ -1,0 +1,26 @@
+{
+  "version": "2.0",
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "excludedTypes": "Request"
+      }
+    },
+    "logLevel": {
+      "default": "Information",
+      "Microsoft": "Warning",
+      "Worker": "Information",
+      "Function": "Information"
+    }
+  },
+  "extensions": {
+    "queues": {
+      "maxPollingInterval": "00:00:05",
+      "visibilityTimeout": "00:05:00",
+      "batchSize": 16,
+      "maxDequeueCount": 5,
+      "newBatchThreshold": 8
+    }
+  }
+}
