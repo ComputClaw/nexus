@@ -1,0 +1,5 @@
+{
+    "apiBaseUrl": "https://nexusassistant.azurewebsites.net/api",
+    "functionKey": "<function-key-here>",
+    "apiKey": "<ingest-api-key-here>"
+}

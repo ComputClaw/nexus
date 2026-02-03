@@ -23,3 +23,6 @@ deploy.zip
 *.nupkg
 bin/
 obj/
+
+# Sync consumer config (contains secrets)
+scripts/.nexus-config.json
