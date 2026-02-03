@@ -69,8 +69,7 @@ public sealed class CalendarIngestionService
             { "Action", "cancelled" },
             { "Source", "graph-calendar" },
             { "SourceId", resourceId },
-            { "IngestedAt", DateTimeOffset.UtcNow },
-            { "SyncStatus", "pending" }
+            { "IngestedAt", DateTimeOffset.UtcNow }
         };
         await _itemsTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
         _logger.LogInformation("Recorded calendar event cancellation: {Id}", resourceId);
@@ -103,8 +102,7 @@ public sealed class CalendarIngestionService
             { "EndTime", endTime },
             { "Location", evt.Location?.DisplayName ?? evt.OnlineMeetingUrl },
             { "ReceivedAt", startTime ?? DateTimeOffset.UtcNow },
-            { "IngestedAt", DateTimeOffset.UtcNow },
-            { "SyncStatus", "pending" }
+            { "IngestedAt", DateTimeOffset.UtcNow }
         };
     }
 

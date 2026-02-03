@@ -5,13 +5,13 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Nexus.Ingest.Models;
 using Nexus.Ingest.Services;
 
 namespace Nexus.Ingest.Functions;
 
 /// <summary>
-/// Read API for the sync consumer. Lists items and fetches blob content.
+/// Read API for the sync consumer. Lists items, fetches blob content, deletes after sync.
+/// Everything in the Items table is pending by definition — delete after processing.
 /// Auth: Function key (Azure) + X-Api-Key (application).
 /// </summary>
 public sealed class ItemsFunction
@@ -34,8 +34,8 @@ public sealed class ItemsFunction
     }
 
     /// <summary>
-    /// List items with optional filters.
-    /// Query params: type (email|calendar|meeting), status (pending|synced), top (default 100).
+    /// List all items (everything in the table is pending).
+    /// Query params: type (email|calendar|meeting), top (default 100, max 500).
     /// </summary>
     [Function("ItemsList")]
     public async Task<HttpResponseData> List(
@@ -48,17 +48,12 @@ public sealed class ItemsFunction
 
         var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
         var type = query["type"];
-        var status = query["status"] ?? "pending";
         var top = int.TryParse(query["top"], out var t) ? Math.Min(t, 500) : 100;
 
-        // Build OData filter
-        var filters = new List<string>();
-        if (!string.IsNullOrEmpty(type))
-            filters.Add($"PartitionKey eq '{type}'");
-        if (!string.IsNullOrEmpty(status))
-            filters.Add($"SyncStatus eq '{status}'");
-
-        var filter = filters.Count > 0 ? string.Join(" and ", filters) : null;
+        // Filter by partition key (type) if specified
+        var filter = !string.IsNullOrEmpty(type)
+            ? $"PartitionKey eq '{type}'"
+            : null;
 
         var items = new List<Dictionary<string, object?>>();
         var count = 0;
@@ -71,7 +66,7 @@ public sealed class ItemsFunction
             count++;
         }
 
-        _logger.LogInformation("Listed {Count} items (type={Type}, status={Status})", count, type, status);
+        _logger.LogInformation("Listed {Count} items (type={Type})", count, type ?? "all");
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteAsJsonAsync(new { items, count }, ct);
@@ -145,53 +140,42 @@ public sealed class ItemsFunction
     }
 
     /// <summary>
-    /// Mark items as synced. Accepts array of {partitionKey, rowKey} pairs.
-    /// Sets SyncStatus = "synced" and adds SyncedAt timestamp.
+    /// Delete a single item after the consumer has processed it.
+    /// Query params: type (partitionKey), id (rowKey).
+    /// Idempotent — returns 204 even if already deleted.
     /// </summary>
-    [Function("ItemsMarkSynced")]
-    public async Task<HttpResponseData> MarkSynced(
-        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "items/sync")]
+    [Function("ItemsDelete")]
+    public async Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "items")]
         HttpRequestData req,
         CancellationToken ct)
     {
         if (!ValidateApiKey(req))
             return req.CreateResponse(HttpStatusCode.Unauthorized);
 
-        var body = await req.ReadFromJsonAsync<ItemsSyncRequest>(ct);
-        if (body?.Items == null || body.Items.Count == 0)
+        var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
+        var type = query["type"];
+        var id = query["id"];
+
+        if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(id))
         {
             var bad = req.CreateResponse(HttpStatusCode.BadRequest);
-            await bad.WriteStringAsync("Body must contain an 'items' array", ct);
+            await bad.WriteStringAsync("Required query params: type, id", ct);
             return bad;
         }
 
-        var synced = 0;
-        foreach (var item in body.Items)
+        try
         {
-            try
-            {
-                var entity = await _itemsTable.GetEntityAsync<TableEntity>(
-                    item.PartitionKey, item.RowKey, cancellationToken: ct);
-
-                entity.Value["SyncStatus"] = "synced";
-                entity.Value["SyncedAt"] = DateTimeOffset.UtcNow;
-
-                await _itemsTable.UpdateEntityAsync(
-                    entity.Value, entity.Value.ETag, cancellationToken: ct);
-                synced++;
-            }
-            catch (RequestFailedException ex) when (ex.Status == 404)
-            {
-                _logger.LogWarning("Item not found for sync: {PK}/{RK}",
-                    item.PartitionKey, item.RowKey);
-            }
+            await _itemsTable.DeleteEntityAsync(type, id, cancellationToken: ct);
+            _logger.LogInformation("Deleted item: {Type}/{Id}", type, id);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            // Already gone — idempotent
+            _logger.LogDebug("Item already deleted: {Type}/{Id}", type, id);
         }
 
-        _logger.LogInformation("Marked {Synced}/{Total} items as synced", synced, body.Items.Count);
-
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(new { synced, total = body.Items.Count }, ct);
-        return response;
+        return req.CreateResponse(HttpStatusCode.NoContent);
     }
 
     private static Dictionary<string, object?> EntityToDict(TableEntity entity)

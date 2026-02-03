@@ -131,8 +131,7 @@ public sealed class EmailIngestionService
             { "BodyText", HtmlStripper.StripHtml(message.UniqueBody?.Content) },
             { "FullBodyBlob", fullBodyBlobPath },
             { "ReceivedAt", receivedAt },
-            { "IngestedAt", DateTimeOffset.UtcNow },
-            { "SyncStatus", "pending" }
+            { "IngestedAt", DateTimeOffset.UtcNow }
         };
     }
 

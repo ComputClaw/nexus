@@ -82,8 +82,7 @@ public sealed class MeetingIngestionService
             { "StartTime", date },
             { "EndTime", date.AddMinutes(transcript.Duration ?? 0) },
             { "ReceivedAt", date },
-            { "IngestedAt", DateTimeOffset.UtcNow },
-            { "SyncStatus", "pending" }
+            { "IngestedAt", DateTimeOffset.UtcNow }
         };
     }
 
