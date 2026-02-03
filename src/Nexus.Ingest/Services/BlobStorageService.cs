@@ -1,4 +1,5 @@
 using System.Text;
+using Azure;
 using Azure.Storage.Blobs;
 using Microsoft.Graph.Models;
 using Nexus.Ingest.Helpers;
@@ -71,6 +72,32 @@ public sealed class BlobStorageService
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Read blob content as string. Returns null if blob doesn't exist.
+    /// </summary>
+    public async Task<string?> ReadBlob(string type, string blobPath, CancellationToken ct)
+    {
+        var container = type switch
+        {
+            "email" => _emailContainer,
+            "meeting" => _transcriptContainer,
+            _ => null
+        };
+
+        if (container == null) return null;
+
+        try
+        {
+            var blob = container.GetBlobClient(blobPath);
+            var response = await blob.DownloadContentAsync(ct);
+            return response.Value.Content.ToString();
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null;
+        }
     }
 
     private static string SanitizeId(string id, int maxLength)
