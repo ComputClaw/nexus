@@ -50,6 +50,11 @@ var host = new HostBuilder()
         // Application services
         services.AddSingleton<WhitelistService>();
         services.AddSingleton<BlobStorageService>();
+        services.AddSingleton<GraphService>();
+        services.AddSingleton<EmailIngestionService>();
+        services.AddSingleton<CalendarIngestionService>();
+        services.AddSingleton<MeetingIngestionService>();
+        services.AddSingleton<SubscriptionService>();
     })
     .Build();
 

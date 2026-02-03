@@ -26,7 +26,7 @@ public sealed class WhitelistFunction
 
     [Function("WhitelistList")]
     public async Task<HttpResponseData> List(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "whitelist")]
+        [HttpTrigger(AuthorizationLevel.Function, "get", Route = "whitelist")]
         HttpRequestData req,
         CancellationToken ct)
     {
@@ -41,7 +41,7 @@ public sealed class WhitelistFunction
 
     [Function("WhitelistAdd")]
     public async Task<HttpResponseData> Add(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "whitelist")]
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "whitelist")]
         HttpRequestData req,
         CancellationToken ct)
     {
@@ -65,7 +65,7 @@ public sealed class WhitelistFunction
 
     [Function("WhitelistRemove")]
     public async Task<HttpResponseData> Remove(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "whitelist/{domain}")]
+        [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "whitelist/{domain}")]
         HttpRequestData req,
         string domain,
         CancellationToken ct)
