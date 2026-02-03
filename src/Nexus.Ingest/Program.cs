@@ -1,7 +1,6 @@
 using Azure.Data.Tables;
 using Azure.Identity;
 using Azure.Storage.Blobs;
-using Azure.Storage.Queues;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,14 +22,8 @@ var host = new HostBuilder()
         // Blob Storage
         services.AddSingleton(new BlobServiceClient(storageConn));
 
-        // Queue clients (for HTTP functions to enqueue)
-        var queueOpts = new QueueClientOptions { MessageEncoding = QueueMessageEncoding.Base64 };
-        services.AddKeyedSingleton("email-ingest",
-            new QueueClient(storageConn, "email-ingest", queueOpts));
-        services.AddKeyedSingleton("calendar-ingest",
-            new QueueClient(storageConn, "calendar-ingest", queueOpts));
-        services.AddKeyedSingleton("meeting-ingest",
-            new QueueClient(storageConn, "meeting-ingest", queueOpts));
+        // Queue clients (via factory — keyed DI not supported in Azure Functions host)
+        services.AddSingleton(new QueueClientFactory(storageConn));
 
         // Microsoft Graph (client credentials flow)
         var tenantId = config["Graph:TenantId"];
