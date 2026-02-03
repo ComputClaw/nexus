@@ -43,35 +43,36 @@ public sealed class EmailIngestionService
             "Processing {Direction} email: {Subject} from {From}",
             direction, message.Subject, message.From?.EmailAddress?.Address);
 
-        // Outbound: auto-whitelist TO recipients (not CC)
+        // Outbound: auto-whitelist TO recipients by full email address (not CC, not domain)
         if (direction == "outbound")
         {
-            var toRecipients = (message.ToRecipients ?? [])
+            var toEmails = (message.ToRecipients ?? [])
                 .Where(r => !string.IsNullOrEmpty(r.EmailAddress?.Address))
-                .Select(r => ExtractDomain(r.EmailAddress!.Address!))
+                .Select(r => r.EmailAddress!.Address!.ToLowerInvariant())
                 .Distinct()
                 .ToList();
 
-            var newDomains = await _whitelist.AddDomainsIfNew(toRecipients, "auto-email", ct);
+            var newEmails = await _whitelist.AddEmailsIfNew(toEmails, "auto-email", ct);
 
-            foreach (var domain in newDomains)
+            foreach (var email in newEmails)
             {
-                _logger.LogInformation("Auto-whitelisted domain from outbound email: {Domain}", domain);
-                await _whitelist.PromotePendingEmails(domain, ct);
+                _logger.LogInformation("Auto-whitelisted email from outbound: {Email}", email);
+                await _whitelist.PromotePendingByEmail(email, ct);
             }
         }
 
         // Build table entity
         var entity = await MapEmailToEntity(message, direction, ct);
 
-        // Inbound: check whitelist
+        // Inbound: check whitelist (full email OR domain)
+        var senderEmail = (message.From?.EmailAddress?.Address ?? "").ToLowerInvariant();
         if (direction == "inbound")
         {
-            if (!string.IsNullOrEmpty(senderDomain) &&
-                await _whitelist.IsDomainWhitelisted(senderDomain, ct))
+            if (!string.IsNullOrEmpty(senderEmail) &&
+                await _whitelist.IsSenderWhitelisted(senderEmail, senderDomain, ct))
             {
                 await _itemsTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
-                await _whitelist.IncrementEmailCount(senderDomain, ct);
+                await _whitelist.IncrementEmailCount(senderEmail, senderDomain, ct);
                 _logger.LogInformation("Stored whitelisted email in Items: {Subject}", message.Subject);
             }
             else

@@ -11,4 +11,6 @@ public sealed class WhitelistedDomainDto
     public DateTimeOffset AddedAt { get; set; }
     public string AddedBy { get; set; } = string.Empty;
     public int EmailCount { get; set; }
+    /// <summary>"domain" or "email" — indicates whether this is a domain-level or email-level whitelist entry.</summary>
+    public string Type { get; set; } = "domain";
 }

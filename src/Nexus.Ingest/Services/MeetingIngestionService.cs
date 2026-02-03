@@ -40,20 +40,20 @@ public sealed class MeetingIngestionService
         _logger.LogInformation("Stored meeting: {Title} (transcript at {BlobPath})",
             transcript.Title, blobPath);
 
-        // 3. Auto-whitelist participant domains
-        var participantDomains = (transcript.MeetingAttendees ?? [])
+        // 3. Auto-whitelist participant email addresses (not domains)
+        var participantEmails = (transcript.MeetingAttendees ?? [])
             .Where(a => !string.IsNullOrEmpty(a.Email))
-            .Select(a => ExtractDomain(a.Email!))
+            .Select(a => a.Email!.ToLowerInvariant())
             .Distinct()
             .ToList();
 
-        if (participantDomains.Count > 0)
+        if (participantEmails.Count > 0)
         {
-            var newDomains = await _whitelist.AddDomainsIfNew(participantDomains, "auto-meeting", ct);
-            foreach (var domain in newDomains)
+            var newEmails = await _whitelist.AddEmailsIfNew(participantEmails, "auto-meeting", ct);
+            foreach (var email in newEmails)
             {
-                _logger.LogInformation("Auto-whitelisted domain from meeting: {Domain}", domain);
-                await _whitelist.PromotePendingEmails(domain, ct);
+                _logger.LogInformation("Auto-whitelisted email from meeting: {Email}", email);
+                await _whitelist.PromotePendingByEmail(email, ct);
             }
         }
     }

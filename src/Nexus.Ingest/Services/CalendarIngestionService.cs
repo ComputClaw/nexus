@@ -43,20 +43,20 @@ public sealed class CalendarIngestionService
             "Stored calendar event ({Action}): {Subject} at {Start}",
             action, calendarEvent.Subject, calendarEvent.Start?.DateTime);
 
-        // Auto-whitelist attendee domains
-        var attendeeDomains = (calendarEvent.Attendees ?? [])
+        // Auto-whitelist attendee email addresses (not domains)
+        var attendeeEmails = (calendarEvent.Attendees ?? [])
             .Where(a => !string.IsNullOrEmpty(a.EmailAddress?.Address))
-            .Select(a => ExtractDomain(a.EmailAddress!.Address!))
+            .Select(a => a.EmailAddress!.Address!.ToLowerInvariant())
             .Distinct()
             .ToList();
 
-        if (attendeeDomains.Count > 0)
+        if (attendeeEmails.Count > 0)
         {
-            var newDomains = await _whitelist.AddDomainsIfNew(attendeeDomains, "auto-calendar", ct);
-            foreach (var domain in newDomains)
+            var newEmails = await _whitelist.AddEmailsIfNew(attendeeEmails, "auto-calendar", ct);
+            foreach (var email in newEmails)
             {
-                _logger.LogInformation("Auto-whitelisted domain from calendar event: {Domain}", domain);
-                await _whitelist.PromotePendingEmails(domain, ct);
+                _logger.LogInformation("Auto-whitelisted email from calendar event: {Email}", email);
+                await _whitelist.PromotePendingByEmail(email, ct);
             }
         }
     }
