@@ -1,0 +1,23 @@
+# .NET
+bin/
+obj/
+publish/
+*.user
+*.suo
+*.vs/
+
+# Azure Functions
+local.settings.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+deploy.zip
+*.nupkg
