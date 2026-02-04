@@ -46,13 +46,14 @@ public sealed class EmailIngestionService
         // Outbound: auto-whitelist TO recipients by full email address (not CC, not domain)
         if (direction == "outbound")
         {
-            var toEmails = (message.ToRecipients ?? [])
+            var recipientEmails = (message.ToRecipients ?? [])
+                .Concat(message.CcRecipients ?? [])
                 .Where(r => !string.IsNullOrEmpty(r.EmailAddress?.Address))
                 .Select(r => r.EmailAddress!.Address!.ToLowerInvariant())
                 .Distinct()
                 .ToList();
 
-            var newEmails = await _whitelist.AddEmailsIfNew(toEmails, "auto-email", ct);
+            var newEmails = await _whitelist.AddEmailsIfNew(recipientEmails, "auto-email", ct);
 
             foreach (var email in newEmails)
             {
