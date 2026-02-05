@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using Azure;
 using Azure.Storage.Blobs;
@@ -29,18 +30,28 @@ public sealed class BlobStorageService
 
     /// <summary>
     /// Store full email body in blob storage (monthly folders for easy cleanup).
+    /// Uses SHA256 hash of message ID to avoid collisions (Graph IDs share common prefix).
     /// </summary>
     public async Task<string> StoreEmailBody(Message message, CancellationToken ct)
     {
         var date = message.ReceivedDateTime ?? message.SentDateTime ?? DateTimeOffset.UtcNow;
-        var shortId = SanitizeId(message.Id ?? "unknown", 80);
-        var blobName = $"{date:yyyy-MM}/{shortId}.txt";
+        var idHash = HashId(message.Id ?? "unknown");
+        var blobName = $"{date:yyyy-MM}/{idHash}.txt";
 
         var content = HtmlStripper.StripHtml(message.Body?.Content);
         var blob = _emailContainer.GetBlobClient(blobName);
         await blob.UploadAsync(BinaryData.FromString(content), overwrite: true, ct);
 
         return blobName;
+    }
+
+    /// <summary>
+    /// Generate a short, collision-resistant hash from an ID.
+    /// </summary>
+    private static string HashId(string id)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(id));
+        return Convert.ToHexString(hash)[..32].ToLowerInvariant();
     }
 
     /// <summary>

@@ -49,13 +49,25 @@ public sealed class SubscriptionService
     /// </summary>
     private string BuildNotificationUrl(string route)
     {
-        var baseUrl = $"https://nexusassistant.azurewebsites.net/api/{route}";
+        // Use config so dev/staging/prod can differ.
+        // Examples:
+        //   Nexus:PublicBaseUrl = https://nexusassistant.azurewebsites.net
+        //   PublicBaseUrl       = https://nexusassistant.azurewebsites.net (legacy/shortcut)
+        var publicBaseUrl = _config["Nexus:PublicBaseUrl"]
+            ?? _config["PublicBaseUrl"]
+            ?? "https://nexusassistant.azurewebsites.net";
+
+        publicBaseUrl = publicBaseUrl.TrimEnd('/');
+        var baseUrl = $"{publicBaseUrl}/api/{route}";
+
+        // Function key is optional locally (depending on host), required in Azure.
         var functionKey = _config["FunctionKey"];
         if (!string.IsNullOrEmpty(functionKey))
         {
             var encodedKey = Uri.EscapeDataString(functionKey);
             return $"{baseUrl}?code={encodedKey}";
         }
+
         return baseUrl;
     }
 

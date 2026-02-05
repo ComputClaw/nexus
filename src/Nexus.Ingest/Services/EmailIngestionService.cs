@@ -43,7 +43,7 @@ public sealed class EmailIngestionService
             "Processing {Direction} email: {Subject} from {From}",
             direction, message.Subject, message.From?.EmailAddress?.Address);
 
-        // Outbound: auto-whitelist TO recipients by full email address (not CC, not domain)
+        // Outbound: auto-whitelist TO + CC recipients by full email address (use BCC to avoid; not domain)
         if (direction == "outbound")
         {
             var recipientEmails = (message.ToRecipients ?? [])

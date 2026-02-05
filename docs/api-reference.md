@@ -186,7 +186,7 @@ These are not HTTP endpoints — they're queue-triggered functions that run auto
   - Checks whitelist (sender's email address OR sender's domain)
   - **Whitelisted:** Writes to `Items` table. Stores `uniqueBody` in `BodyText`, full body as blob in `email-bodies/`
   - **Not whitelisted:** Writes to `PendingEmails` table (parked for later promotion)
-  - **Outbound email:** Auto-whitelists TO recipients by full email address (not CC, not domain-level)
+  - **Outbound email:** Auto-whitelists TO + CC recipients by full email address (use BCC to avoid auto-whitelisting; not domain-level)
 
 ### `CalendarProcessor`
 
@@ -303,7 +303,7 @@ Full meeting transcripts from Fireflies.
 
 ## Whitelist Logic Summary
 
-1. **Outbound email** → auto-whitelist TO recipients by full email address (not CC, not domain)
+1. **Outbound email** → auto-whitelist TO + CC recipients by full email address (use BCC to avoid; not domain)
 2. **Calendar events** → auto-whitelist all attendee email addresses
 3. **Meetings** → auto-whitelist all participant email addresses
 4. **Manual API** → supports both domain-level and email-level entries

@@ -45,7 +45,7 @@ Agent (sync consumer) ──── GET items ──▶ write markdown ──▶ 
 
 **Whitelist model:**
 - `domain` partition — manually added via API (e.g., "example.com")
-- `email` partition — auto-populated from outbound emails (TO recipients), calendar attendees, and meeting participants
+- `email` partition — auto-populated from outbound emails (TO + CC recipients; use BCC to avoid), calendar attendees, and meeting participants
 - Inbound check: sender's full email OR sender's domain — either match passes
 - Non-whitelisted inbound emails parked in `PendingEmails`, promoted when the sender gets whitelisted
 
