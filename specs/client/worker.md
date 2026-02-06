@@ -1,0 +1,202 @@
+# Nexus Worker
+
+Local Python service that syncs data between the OpenClaw host and Nexus.
+
+## Purpose
+
+Multi-job worker running on the OpenClaw host (10.3.3.126). Jobs are configured independently — each has its own schedule, type, and settings.
+
+**Key principle:** Worker posts raw data, Nexus processes. Logic lives in Nexus, worker stays dumb.
+
+## Repo Location
+
+```
+ComputClaw/nexus/
+└── worker/
+    ├── nexus_worker/
+    │   ├── __init__.py
+    │   ├── main.py           # Entry point, job scheduler
+    │   ├── config.py         # Config loading
+    │   └── jobs/
+    │       ├── __init__.py
+    │       ├── session_upload.py
+    │       └── webhook_pull.py
+    ├── config.json
+    └── requirements.txt
+```
+
+## Configuration
+
+```json
+{
+  "nexus": {
+    "endpoint": "https://nexusassistant.azurewebsites.net/api",
+    "apiKey": "..."
+  },
+  "agents": {
+    "main": {
+      "workspace": "/home/martin/.openclaw/workspace",
+      "sessionsDir": "/home/martin/.openclaw/agents/main/sessions"
+    },
+    "flickclaw": {
+      "workspace": "/home/martin/.openclaw/workspace-flickclaw",
+      "sessionsDir": "/home/martin/.openclaw/agents/flickclaw/sessions"
+    },
+    "stewardclaw": {
+      "workspace": "/home/martin/.openclaw/workspace-stewardclaw",
+      "sessionsDir": "/home/martin/.openclaw/agents/stewardclaw/sessions"
+    }
+  },
+  "jobs": [
+    {
+      "id": "session-upload",
+      "type": "session_upload",
+      "enabled": true,
+      "intervalMinutes": 60,
+      "config": {
+        "agents": ["main", "flickclaw", "stewardclaw"]
+      }
+    },
+    {
+      "id": "webhook-pull",
+      "type": "webhook_pull",
+      "enabled": false,
+      "intervalMinutes": 5,
+      "config": {}
+    }
+  ]
+}
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Nexus Worker                           │
+│                                                             │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐       │
+│  │   Config    │   │  Scheduler  │   │   Logger    │       │
+│  │   Loader    │──▶│  (main loop)│──▶│  (stdout)   │       │
+│  └─────────────┘   └──────┬──────┘   └─────────────┘       │
+│                           │                                 │
+│         ┌─────────────────┼─────────────────┐              │
+│         ▼                 ▼                 ▼              │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐       │
+│  │  session_   │   │  webhook_   │   │  (future    │       │
+│  │  upload     │   │  pull       │   │   jobs)     │       │
+│  └─────────────┘   └─────────────┘   └─────────────┘       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │   Nexus     │
+                    │  (Azure)    │
+                    └─────────────┘
+```
+
+## Job Types
+
+| Type | Direction | Description | Details |
+|------|-----------|-------------|---------|
+| `session_upload` | Push | Upload completed session transcripts | [worker-session-upload.md](./worker-session-upload.md) |
+| `webhook_pull` | Pull | Fetch webhook items, deliver to agents | [worker-webhook-pull.md](./worker-webhook-pull.md) |
+
+## Main Loop
+
+```python
+def main():
+    config = load_config()
+    jobs = initialize_jobs(config)
+    
+    while True:
+        for job in jobs:
+            if job.enabled and job.due():
+                try:
+                    job.run()
+                    job.mark_success()
+                except Exception as e:
+                    job.mark_failure(e)
+                    log_error(job.id, e)
+        
+        sleep(60)  # Check every minute
+```
+
+## Job Interface
+
+Each job implements:
+
+```python
+class Job:
+    id: str
+    type: str
+    enabled: bool
+    interval_minutes: int
+    last_run: datetime | None
+    
+    def due(self) -> bool:
+        """Check if job should run based on interval."""
+    
+    def run(self) -> None:
+        """Execute the job. Raise on failure."""
+    
+    def mark_success(self) -> None:
+        """Update last_run timestamp."""
+    
+    def mark_failure(self, error: Exception) -> None:
+        """Log failure, maybe notify."""
+```
+
+## Deployment
+
+Systemd service on .126:
+
+```ini
+[Unit]
+Description=Nexus Worker
+After=network.target
+
+[Service]
+Type=simple
+User=martin
+WorkingDirectory=/home/martin/repos/nexus/worker
+ExecStart=/usr/bin/python3 -m nexus_worker.main
+Restart=always
+RestartSec=30
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Commands:**
+```bash
+# Install
+sudo cp nexus-worker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable nexus-worker
+
+# Control
+sudo systemctl start nexus-worker
+sudo systemctl stop nexus-worker
+sudo systemctl restart nexus-worker
+
+# Monitor
+sudo systemctl status nexus-worker
+journalctl -u nexus-worker -f
+```
+
+## Dependencies
+
+```
+# requirements.txt
+requests>=2.28.0
+```
+
+## Status
+
+📝 Designed, pending implementation
+
+---
+
+*Part of the Nexus integration service*

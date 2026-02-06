@@ -8,14 +8,12 @@ Technical specifications for developing the Nexus data ingestion service.
 specs/
 ├── server/              # Cloud service (Azure Functions)
 │   ├── sessions.md      # Session transcript storage
-│   ├── authentication.md
-│   ├── agent-integration.md
 │   └── administration.md
 ├── client/              # Worker and jobs (Python)
-│   ├── worker-spec.md   # Worker architecture
+│   ├── worker.md        # Worker architecture
 │   └── jobs/
-│       ├── session-upload-spec.md
-│       └── webhook-pull-spec.md
+│       ├── session-upload.md
+│       └── webhook-pull.md
 └── outstanding.md       # Open items tracking
 ```
 
@@ -26,8 +24,6 @@ Azure Functions that receive and store data.
 | Area | Status | Specification |
 |------|--------|---------------|
 | **Sessions** | ✅ Implemented | [📄](server/sessions.md) |
-| **Authentication** | ✅ Implemented | [📄](server/authentication.md) |
-| **Agent Integration** | ✅ Implemented | [📄](server/agent-integration.md) |
 | **Administration** | ✅ Implemented | [📄](server/administration.md) |
 
 ## Client (Worker)
@@ -36,9 +32,9 @@ Python service that syncs data between OpenClaw host and Nexus.
 
 | Area | Status | Specification |
 |------|--------|---------------|
-| **Worker** | 📝 Spec Complete | [📄](client/worker-spec.md) |
-| **session_upload job** | 📝 Spec Complete | [📄](client/jobs/session-upload-spec.md) |
-| **webhook_pull job** | 📝 Spec Complete | [📄](client/jobs/webhook-pull-spec.md) |
+| **Worker** | 📝 Spec Complete | [📄](client/worker.md) |
+| **session_upload job** | 📝 Spec Complete | [📄](client/jobs/session-upload.md) |
+| **webhook_pull job** | 📝 Spec Complete | [📄](client/jobs/webhook-pull.md) |
 
 ## Implementation Priority
 

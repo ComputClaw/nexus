@@ -32,9 +32,9 @@ All specs are in the [specs/client/](../specs/client/) folder:
 
 | Spec | Description |
 |------|-------------|
-| [worker-spec.md](../specs/client/worker-spec.md) | Worker architecture, config, CLI |
-| [session-upload-spec.md](../specs/client/jobs/session-upload-spec.md) | Session upload job |
-| [webhook-pull-spec.md](../specs/client/jobs/webhook-pull-spec.md) | Webhook pull job |
+| [worker.md](../specs/client/worker.md) | Worker architecture, config, CLI |
+| [session-upload.md](../specs/client/jobs/session-upload.md) | Session upload job |
+| [webhook-pull.md](../specs/client/jobs/webhook-pull.md) | Webhook pull job |
 
 ## Status
 
