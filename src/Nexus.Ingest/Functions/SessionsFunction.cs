@@ -91,8 +91,8 @@ public sealed class SessionsFunction
         // Ensure container exists
         await _container.CreateIfNotExistsAsync(cancellationToken: ct);
 
-        // Upload to blob: sessions/{agentId}/{sessionId}.jsonl
-        var blobPath = $"{body.AgentId}/{body.SessionId}.jsonl";
+        // Upload to blob: sessions/inbox/{agentId}/{sessionId}.jsonl
+        var blobPath = $"inbox/{body.AgentId}/{body.SessionId}.jsonl";
         var blobClient = _container.GetBlobClient(blobPath);
 
         try
