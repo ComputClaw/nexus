@@ -3,7 +3,6 @@ using Azure;
 using Azure.Data.Tables;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Services;
 
@@ -12,24 +11,21 @@ namespace Nexus.Ingest.Functions;
 /// <summary>
 /// Read API for the sync consumer. Lists items, fetches blob content, deletes after sync.
 /// Everything in the Items table is pending by definition — delete after processing.
-/// Auth: Function key (Azure) + X-Api-Key (application).
+/// Auth: Function key (Azure).
 /// </summary>
 public sealed class ItemsFunction
 {
     private readonly TableClient _itemsTable;
     private readonly BlobStorageService _blobService;
-    private readonly string _apiKey;
     private readonly ILogger<ItemsFunction> _logger;
 
     public ItemsFunction(
         TableServiceClient tableService,
         BlobStorageService blobService,
-        IConfiguration config,
         ILogger<ItemsFunction> logger)
     {
         _itemsTable = tableService.GetTableClient("Items");
         _blobService = blobService;
-        _apiKey = config["IngestApiKey"] ?? throw new InvalidOperationException("IngestApiKey not configured");
         _logger = logger;
     }
 
@@ -43,9 +39,6 @@ public sealed class ItemsFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
         var type = query["type"];
         var top = int.TryParse(query["top"], out var t) ? Math.Min(t, 500) : 100;
@@ -84,9 +77,6 @@ public sealed class ItemsFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
         var type = query["type"];
         var id = query["id"];
@@ -150,9 +140,6 @@ public sealed class ItemsFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
         var type = query["type"];
         var id = query["id"];
@@ -195,14 +182,5 @@ public sealed class ItemsFunction
         }
 
         return dict;
-    }
-
-    private bool ValidateApiKey(HttpRequestData req)
-    {
-        if (req.Headers.TryGetValues("X-Api-Key", out var values))
-        {
-            return values.FirstOrDefault() == _apiKey;
-        }
-        return false;
     }
 }

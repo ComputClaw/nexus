@@ -13,11 +13,11 @@ Common issues and solutions for Nexus.
 1. **Whitelist not configured**
    ```bash
    # Check current whitelist
-   curl "https://nexus.../api/whitelist?code=<key>" -H "X-Api-Key: <key>"
-   
+   curl "https://nexus.../api/whitelist?code=<key>"
+
    # Add your domain
    curl -X POST "https://nexus.../api/whitelist?code=<key>" \
-     -H "X-Api-Key: <key>" -H "Content-Type: application/json" \
+     -H "Content-Type: application/json" \
      -d '{"domains": ["yourdomain.com"]}'
    ```
 
@@ -67,16 +67,9 @@ az functionapp config appsettings list --name nexusassistant | grep Fireflies
    az functionapp keys list --resource-group nexus-rg --name nexusassistant
    ```
 
-2. **Check API key**
+2. **Test with valid key**
    ```bash
-   # Verify X-Api-Key header matches IngestApiKey setting
-   az functionapp config appsettings list --name nexusassistant | grep IngestApiKey
-   ```
-
-3. **Both keys required**
-   ```bash
-   curl "https://nexus.../api/items?code=<function-key>" \
-     -H "X-Api-Key: <api-key>"
+   curl "https://nexus.../api/items?code=<function-key>"
    ```
 
 ## Sync Script Issues
@@ -129,7 +122,7 @@ az functionapp config appsettings list --name nexusassistant | grep Fireflies
 
 2. **Check for items**
    ```bash
-   curl "https://nexus.../api/items?code=<key>" -H "X-Api-Key: <key>"
+   curl "https://nexus.../api/items?code=<key>"
    ```
 
 ## Performance Issues
@@ -152,7 +145,7 @@ az functionapp config appsettings list --name nexusassistant | grep Fireflies
 
 3. **Reduce batch size**
    ```bash
-   curl "https://nexus.../api/items?top=50&code=<key>" -H "X-Api-Key: <key>"
+   curl "https://nexus.../api/items?top=50&code=<key>"
    ```
 
 ### Function Timeouts
@@ -201,8 +194,7 @@ az functionapp config appsettings list --name nexusassistant | grep Fireflies
 
 1. **Manual cleanup**
    ```bash
-   curl -X DELETE "https://nexus.../api/items?type=email&id=<id>&code=<key>" \
-     -H "X-Api-Key: <key>"
+   curl -X DELETE "https://nexus.../api/items?type=email&id=<id>&code=<key>"
    ```
 
 2. **Check function logs for delete failures**

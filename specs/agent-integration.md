@@ -9,7 +9,6 @@ The primary interface for agents to fetch processed data.
 ### List Items
 ```
 GET /api/items?code=<function-key>
-X-Api-Key: <app-key>
 ```
 
 **Query parameters:**
@@ -36,7 +35,6 @@ X-Api-Key: <app-key>
 ### Get Full Content
 ```
 GET /api/items/body?code=<function-key>&type=<type>&id=<rowKey>
-X-Api-Key: <app-key>
 ```
 
 Fetches full email body or meeting transcript from blob storage.
@@ -46,7 +44,6 @@ Fetches full email body or meeting transcript from blob storage.
 ### Delete Item
 ```
 DELETE /api/items?code=<function-key>&type=<type>&id=<rowKey>
-X-Api-Key: <app-key>
 ```
 
 Removes item after processing (idempotent).
@@ -74,9 +71,7 @@ node nexus-sync.js --with-body --type email
 ```json
 {
   "nexusUrl": "https://nexusassistant.azurewebsites.net/api",
-  "functionKey": "...", 
-  "apiKey": "...",
-  "outputDir": "../data/inbox"
+  "functionKey": "..."
 }
 ```
 
@@ -120,7 +115,6 @@ Email body content here...
 
 **Agent credentials:**
 - Function key - Access to Nexus endpoints
-- Application key - Additional security layer
 
 **Data flow:**
 - All data flows from Nexus → Agent (one direction)

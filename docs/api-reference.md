@@ -10,17 +10,15 @@ https://nexusassistant.azurewebsites.net/api/
 
 ## Authentication
 
-All requests require two keys:
+All requests require a Function Key:
 
 ```bash
-curl "https://nexus.../api/items?code=<function-key>" \
-  -H "X-Api-Key: <app-key>"
+curl "https://nexus.../api/items?code=<function-key>"
 ```
 
-**Function Key** - Azure-managed, in URL as `code` parameter  
-**App Key** - Nexus-managed, in `X-Api-Key` header
+**Function Key** - Azure-managed, passed in URL as `code` parameter.
 
-Get both from your administrator.
+Get your key from your administrator.
 
 ## Items API
 
@@ -162,12 +160,8 @@ Content-Type: application/json
 ```
 
 ### 401 Unauthorized
-```json
-{
-  "error": "Unauthorized",
-  "details": "Invalid API key"
-}
-```
+
+Returned when the function key is missing or invalid.
 
 ### 404 Not Found
 ```json

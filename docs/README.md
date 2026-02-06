@@ -12,7 +12,6 @@ Nexus collects data from external services and makes it available to OpenClaw ag
 
 1. **Get credentials** from your administrator:
    - Function key (Azure)
-   - Application API key (Nexus)
 
 2. **Set up sync script:**
    ```bash
@@ -61,13 +60,13 @@ Direct API access for custom integrations:
 
 ```bash
 # List available items
-curl "https://nexus.../api/items?code=<key>" -H "X-Api-Key: <key>"
+curl "https://nexus.../api/items?code=<key>"
 
 # Get full content
-curl "https://nexus.../api/items/body?type=email&id=<id>&code=<key>" -H "X-Api-Key: <key>"
+curl "https://nexus.../api/items/body?type=email&id=<id>&code=<key>"
 
 # Delete after processing
-curl -X DELETE "https://nexus.../api/items?type=email&id=<id>&code=<key>" -H "X-Api-Key: <key>"
+curl -X DELETE "https://nexus.../api/items?type=email&id=<id>&code=<key>"
 ```
 
 ## Documentation

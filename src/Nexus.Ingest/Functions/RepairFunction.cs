@@ -3,7 +3,6 @@ using Azure;
 using Azure.Data.Tables;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 using Nexus.Ingest.Services;
@@ -18,20 +17,17 @@ public sealed class RepairFunction
     private readonly TableClient _itemsTable;
     private readonly GraphService _graphService;
     private readonly BlobStorageService _blobService;
-    private readonly string _apiKey;
     private readonly ILogger<RepairFunction> _logger;
 
     public RepairFunction(
         TableServiceClient tableService,
         GraphService graphService,
         BlobStorageService blobService,
-        IConfiguration config,
         ILogger<RepairFunction> logger)
     {
         _itemsTable = tableService.GetTableClient("Items");
         _graphService = graphService;
         _blobService = blobService;
-        _apiKey = config["IngestApiKey"] ?? throw new InvalidOperationException("IngestApiKey not configured");
         _logger = logger;
     }
 
@@ -46,9 +42,6 @@ public sealed class RepairFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
         var top = int.TryParse(query["top"], out var t) ? Math.Min(t, 500) : 100;
         var dryRun = query["dryRun"]?.ToLowerInvariant() == "true";
@@ -118,14 +111,5 @@ public sealed class RepairFunction
             results
         }, ct);
         return response;
-    }
-
-    private bool ValidateApiKey(HttpRequestData req)
-    {
-        if (req.Headers.TryGetValues("X-Api-Key", out var values))
-        {
-            return values.FirstOrDefault() == _apiKey;
-        }
-        return false;
     }
 }

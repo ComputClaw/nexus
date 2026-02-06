@@ -1,7 +1,6 @@
 using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
 using Nexus.Ingest.Services;
@@ -11,16 +10,13 @@ namespace Nexus.Ingest.Functions;
 public sealed class WhitelistFunction
 {
     private readonly WhitelistService _whitelistService;
-    private readonly string _apiKey;
     private readonly ILogger<WhitelistFunction> _logger;
 
     public WhitelistFunction(
         WhitelistService whitelistService,
-        IConfiguration config,
         ILogger<WhitelistFunction> logger)
     {
         _whitelistService = whitelistService;
-        _apiKey = config["IngestApiKey"] ?? throw new InvalidOperationException("IngestApiKey not configured");
         _logger = logger;
     }
 
@@ -30,9 +26,6 @@ public sealed class WhitelistFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         var entries = await _whitelistService.ListAll(ct);
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteAsJsonAsync(entries, ct);
@@ -45,9 +38,6 @@ public sealed class WhitelistFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         var body = await req.ReadFromJsonAsync<WhitelistRequest>(ct);
         if (body == null || (body.Domains.Count == 0 && body.Emails.Count == 0))
         {
@@ -106,9 +96,6 @@ public sealed class WhitelistFunction
         string value,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         if (type.Equals("email", StringComparison.OrdinalIgnoreCase))
         {
             await _whitelistService.RemoveEmail(value, ct);
@@ -121,14 +108,5 @@ public sealed class WhitelistFunction
         }
 
         return req.CreateResponse(HttpStatusCode.NoContent);
-    }
-
-    private bool ValidateApiKey(HttpRequestData req)
-    {
-        if (req.Headers.TryGetValues("X-Api-Key", out var values))
-        {
-            return values.FirstOrDefault() == _apiKey;
-        }
-        return false;
     }
 }

@@ -13,16 +13,6 @@ POST /api/sessions?code=<function-key>
 
 **Function keys are Azure-managed** and control access to the entire Function App.
 
-## Application Key Authentication
-
-Most APIs also require an application key in the header:
-
-```
-X-Api-Key: <application-key>
-```
-
-**Application keys are Nexus-specific** and provide additional security.
-
 ## Webhook Authentication
 
 Webhook endpoints use source-specific validation:
@@ -36,17 +26,15 @@ Webhook endpoints use source-specific validation:
 
 ## Security Model
 
-| Endpoint Type | Function Key | App Key | Special |
-|---------------|--------------|---------|---------|
-| **Webhooks** | ✅ Required | ❌ None | Source validation |
-| **Agent APIs** | ✅ Required | ✅ Required | - |
-| **Admin APIs** | ✅ Required | ✅ Required | - |
+| Endpoint Type | Function Key | Special |
+|---------------|--------------|---------|
+| **Webhooks** | ✅ Required | Source validation |
+| **Agent APIs** | ✅ Required | - |
+| **Admin APIs** | ✅ Required | - |
 
 ## Configuration
 
 **Function keys** — Managed in Azure Portal under Function App > App keys
-
-**Application key** — Stored in Function App settings as `IngestApiKey`
 
 **Webhook secrets** — Stored in Function App settings:
 - `GraphClientState` - Microsoft Graph validation token

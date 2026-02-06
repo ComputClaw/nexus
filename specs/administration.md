@@ -104,7 +104,6 @@ Failed queue messages are automatically retried with exponential backoff. After 
 
 | Setting | Description |
 |---------|-------------|
-| `IngestApiKey` | Application API key |
 | `GraphTenantId` | Azure AD tenant |
 | `GraphClientId` | Azure AD app registration |
 | `GraphClientSecret` | Azure AD app secret |
@@ -121,7 +120,6 @@ Failed queue messages are automatically retried with exponential backoff. After 
 
 ### Access Control
 - **Function keys** - Control endpoint access
-- **Application keys** - Additional security layer
 - **Managed identity** - Azure resource access
 - **Graph permissions** - Limited to required scopes
 

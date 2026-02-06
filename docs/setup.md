@@ -40,7 +40,6 @@ az functionapp config appsettings set \
   --name nexusassistant \
   --settings \
     NexusStorage="<connection-string>" \
-    IngestApiKey="<random-key>" \
     GraphTenantId="<tenant-id>" \
     GraphClientId="<app-id>" \
     GraphClientSecret="<app-secret>" \
@@ -102,7 +101,6 @@ Verify subscriptions are created successfully.
 
 ```bash
 curl -X POST "https://nexusassistant.azurewebsites.net/api/whitelist?code=<function-key>" \
-  -H "X-Api-Key: <api-key>" \
   -H "Content-Type: application/json" \
   -d '{"domains": ["yourdomain.com"]}'
 ```
@@ -110,8 +108,7 @@ curl -X POST "https://nexusassistant.azurewebsites.net/api/whitelist?code=<funct
 ### 2. Verify Whitelist
 
 ```bash
-curl "https://nexusassistant.azurewebsites.net/api/whitelist?code=<function-key>" \
-  -H "X-Api-Key: <api-key>"
+curl "https://nexusassistant.azurewebsites.net/api/whitelist?code=<function-key>"
 ```
 
 ## Optional: Fireflies.ai Setup
@@ -142,13 +139,11 @@ az functionapp config appsettings set \
 
 Give agents:
 - **Function key:** From Azure Portal → Function App → App keys
-- **API key:** The `IngestApiKey` from application settings
 
 ### 2. Test Connection
 
 ```bash
-curl "https://nexusassistant.azurewebsites.net/api/items?code=<function-key>" \
-  -H "X-Api-Key: <api-key>"
+curl "https://nexusassistant.azurewebsites.net/api/items?code=<function-key>"
 ```
 
 Should return `{"items": [], "count": 0}` for new setup.
@@ -189,8 +184,7 @@ Monitor for:
 
 ### 3. Key Management
 
-- Rotate function keys monthly
-- Rotate API keys quarterly
+- Rotate function keys periodically
 - Monitor access logs
 
 ## Backup and Recovery

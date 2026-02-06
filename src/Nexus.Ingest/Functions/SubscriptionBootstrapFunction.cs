@@ -14,7 +14,6 @@ namespace Nexus.Ingest.Functions;
 public sealed class SubscriptionBootstrapFunction
 {
     private readonly SubscriptionService _subscriptionService;
-    private readonly string _apiKey;
     private readonly string _userId;
     private readonly ILogger<SubscriptionBootstrapFunction> _logger;
 
@@ -24,7 +23,6 @@ public sealed class SubscriptionBootstrapFunction
         ILogger<SubscriptionBootstrapFunction> logger)
     {
         _subscriptionService = subscriptionService;
-        _apiKey = config["IngestApiKey"] ?? throw new InvalidOperationException("IngestApiKey not configured");
         _userId = config["Graph:UserId"] ?? throw new InvalidOperationException("Graph:UserId not configured");
         _logger = logger;
     }
@@ -35,9 +33,6 @@ public sealed class SubscriptionBootstrapFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        if (!ValidateApiKey(req))
-            return req.CreateResponse(HttpStatusCode.Unauthorized);
-
         _logger.LogInformation("Bootstrapping Graph subscriptions for user {UserId}", _userId);
 
         try
@@ -86,12 +81,5 @@ public sealed class SubscriptionBootstrapFunction
             }, ct);
             return errorResponse;
         }
-    }
-
-    private bool ValidateApiKey(HttpRequestData req)
-    {
-        if (req.Headers.TryGetValues("X-Api-Key", out var values))
-            return values.FirstOrDefault() == _apiKey;
-        return false;
     }
 }

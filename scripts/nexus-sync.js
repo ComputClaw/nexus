@@ -32,7 +32,7 @@ const typeFilter = typeIdx >= 0 ? args[typeIdx + 1] : null;
 // Load config
 if (!fs.existsSync(CONFIG_PATH)) {
     console.error(`Config not found: ${CONFIG_PATH}`);
-    console.error('Create .nexus-config.json with: apiBaseUrl, functionKey, apiKey');
+    console.error('Create .nexus-config.json with: apiBaseUrl, functionKey');
     process.exit(1);
 }
 const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
@@ -51,7 +51,6 @@ function apiRequest(method, endpoint, body = null) {
             path: url.pathname + url.search,
             method,
             headers: {
-                'X-Api-Key': config.apiKey,
                 'Content-Type': 'application/json',
             },
         };
