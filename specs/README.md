@@ -21,19 +21,23 @@ These specifications define what to build, not how to use existing functionality
 | **Sessions** | ✅ Implemented | [📄](sessions.md) |
 | **Agent Integration** | ✅ Implemented | [📄](agent-integration.md) |
 | **Administration** | ✅ Implemented | [📄](administration.md) |
+| **Worker** | 📝 Spec Complete, Not Implemented | [📄](../worker/worker-spec.md) |
 
 ## Implementation Priority
 
 **Ready for implementation:**
-1. **Sessions worker** - Python service for session upload (spec complete)
-2. **Meetings integration** - Fireflies.ai webhook processing (spec complete, needs API key)
+1. **Sessions worker** — Python service for session upload (spec complete)
+2. **Webhook ingestion** — Generic webhook receiver (spec needed)
+3. **Meetings integration** — Fireflies.ai webhook processing (needs API key)
 
 **Completed implementations:**
-- Sessions endpoint (POST /api/sessions)
-- Email/calendar ingestion (Microsoft Graph)
-- Items API (agent consumption)
-- Authentication system
-- Admin functions
+- ✅ Sessions endpoint (POST /api/sessions)
+- ✅ Email/calendar ingestion (Microsoft Graph)
+- ✅ Items API (agent consumption)
+- ✅ Authentication system
+- ✅ Admin functions
+
+See [outstanding.md](outstanding.md) for detailed tracking.
 
 ## Development Workflow
 
