@@ -1,44 +1,54 @@
 # Nexus Worker
 
-Local Python process that syncs webhook data from Nexus to agent workspaces.
+Local Python service that syncs data between OpenClaw agents and Nexus.
 
-## Overview
+## What It Does
 
-The worker runs on the same host as OpenClaw. It:
+- **Uploads session transcripts** - Finds completed sessions, uploads to Nexus for analytics
+- **Delivers webhook data** - Fetches webhook items from Nexus, writes to agent inboxes
+- **Runs on schedule** - Configurable intervals per job type
+- **Notifies agents** - Optional task spawning when jobs complete
 
-1. Polls Nexus for pending webhook items
-2. Writes items as JSON files to each agent's inbox
-3. Spawns isolated agent tasks via `sessions_spawn`
-4. Marks items as processed in Nexus
+## Quick Start
 
-This is a **push model** — agents don't poll Nexus directly. The worker delivers data to them.
+1. **Copy configuration:**
+   ```bash
+   cp config.example.json config.json
+   # Edit with your Nexus URL and API key
+   ```
 
-**Key benefits:**
-- Can run in the **main agent** via cron/heartbeat (no separate daemon needed)
-- **Receiving agents need no credentials** — data arrives as local files in their inbox
+2. **Run once (testing):**
+   ```bash
+   python -m nexus_worker --job main-sessions --verbose
+   ```
 
-## Setup
+3. **Run as daemon:**
+   ```bash
+   python -m nexus_worker
+   ```
 
-```bash
-# Copy config
-cp config.example.json config.json
+## Configuration
 
-# Edit with your Nexus API key and agent paths
-nano config.json
+Jobs are configured in `config.json`. Each job specifies:
+- **type** - What kind of work (`session_upload`, `webhook_pull`)
+- **args** - Job-specific parameters (paths, agent IDs)
+- **intervalMinutes** - How often to run
+- **notifyAgentId** - Optional agent to notify on completion
 
-# Run once (for testing)
-python3 nexus-worker.py --once
+See [config.example.json](config.example.json) for examples.
 
-# Run as daemon
-python3 nexus-worker.py
-```
+## Job Types
+
+| Type | Purpose | Specification |
+|------|---------|---------------|
+| **session_upload** | Upload completed session transcripts | [📄](jobs/session-upload-spec.md) |
+| **webhook_pull** | Deliver webhook items to agent inboxes | [📄](jobs/webhook-pull-spec.md) |
 
 ## Documentation
 
-- [SPEC.md](SPEC.md) — Full specification (requirements, API, deployment)
+- **[Worker Specification](worker-spec.md)** - Complete technical spec
+- **[Job Specifications](jobs/)** - Individual job type specs
 
 ## Status
 
-📝 **Spec complete, implementation pending**
-
-See SPEC.md for implementation requirements.
+📝 **Designed** - Specifications complete, ready for implementation

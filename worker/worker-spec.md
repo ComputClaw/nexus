@@ -76,7 +76,7 @@ The worker is a scheduler that runs configured jobs at intervals. Jobs do work a
     },
     {
       "id": "flickclaw-sessions",
-      "type": "session_upload",
+      "type": "session_upload", 
       "description": "Upload FlickClaw sessions to Nexus",
       "intervalMinutes": 60,
       "notifyAgentId": "flickclaw",
@@ -111,73 +111,9 @@ The worker is a scheduler that runs configured jobs at intervals. Jobs do work a
 
 ## Job Types
 
-### session_upload
-
-Uploads completed session transcripts to Nexus.
-
-**Args (positional):**
-
-| Position | Name | Description |
-|----------|------|-------------|
-| 0 | sessionsDir | Path to sessions directory |
-| 1 | archiveDir | Path to move uploaded files to |
-| 2 | agentId | Agent identifier sent to Nexus |
-
-**Example:**
-```json
-"args": ["/home/martin/.openclaw/agents/main/sessions", "/home/martin/.openclaw/agents/main/sessions/archive", "main"]
-```
-
-**Logic:**
-
-1. Read `sessions.json` from `sessionsDir` → list of active session IDs
-2. List all `*.jsonl` files in `sessionsDir`
-3. Filter to files whose name (minus extension) is NOT in active sessions
-4. For each completed session:
-   a. Read file content
-   b. POST to `{url}/sessions?code={apiKey}`
-   c. On success: move file to `archiveDir`
-   d. On failure: log error, continue to next file
-5. Return results: `{uploaded: N, failed: N, errors: [...]}`
-
-**Nexus Request:**
-
-```
-POST /api/sessions?code={apiKey}
-Content-Type: application/json
-
-{
-  "agentId": "main",
-  "sessionId": "abc123",
-  "transcript": "...raw jsonl content..."
-}
-```
-
-### webhook_pull
-
-Pulls pending webhook items from Nexus and delivers to agent inboxes.
-
-**Args (positional):**
-
-| Position | Name | Description |
-|----------|------|-------------|
-| 0 | agentId | Agent to fetch items for |
-| 1 | workspace | Agent workspace path |
-| 2 | inboxDir | Relative inbox path (optional, default: `inbox/webhooks`) |
-
-**Example:**
-```json
-"args": ["flickclaw", "/home/martin/.openclaw/workspace-flickclaw", "inbox/webhooks"]
-```
-
-**Logic:**
-
-1. GET `{url}/webhook/pending?agentId={agentId}&code={apiKey}`
-2. For each item:
-   a. Write to `{workspace}/{inboxDir}/{source}_{id}.json`
-   b. Collect item IDs
-3. DELETE `{url}/webhook/items?code={apiKey}` with collected IDs
-4. Return results: `{delivered: N, errors: [...]}`
+See individual job specifications:
+- [session_upload](jobs/session-upload-spec.md) - Upload completed session transcripts
+- [webhook_pull](jobs/webhook-pull-spec.md) - Deliver webhook items to agent inboxes
 
 ## Job Interface
 
@@ -235,7 +171,7 @@ python -m nexus_worker
 # Run specific job immediately and exit
 python -m nexus_worker --job main-sessions
 
-# Custom config location (daemon mode)
+# Custom config location (daemon mode)  
 python -m nexus_worker --config /etc/nexus/config.json
 
 # Verbose + specific job
@@ -361,8 +297,7 @@ worker/
 ├── config.json
 ├── config.example.json
 ├── requirements.txt
-├── README.md
-└── SPEC.md
+└── worker-spec.md
 ```
 
 ## Dependencies
