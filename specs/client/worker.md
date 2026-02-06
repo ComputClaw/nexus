@@ -4,7 +4,7 @@ Local Python service that syncs data between the OpenClaw host and Nexus.
 
 ## Purpose
 
-Multi-job worker running on the OpenClaw host (10.3.3.126). Jobs are configured independently — each has its own schedule, type, and settings.
+Multi-job worker running on the OpenClaw host. Jobs are configured independently — each has its own schedule, type, and settings.
 
 **Key principle:** Worker posts raw data, Nexus processes. Logic lives in Nexus, worker stays dumb.
 
@@ -34,17 +34,9 @@ ComputClaw/nexus/
     "apiKey": "..."
   },
   "agents": {
-    "main": {
-      "workspace": "/home/martin/.openclaw/workspace",
-      "sessionsDir": "/home/martin/.openclaw/agents/main/sessions"
-    },
-    "flickclaw": {
-      "workspace": "/home/martin/.openclaw/workspace-flickclaw",
-      "sessionsDir": "/home/martin/.openclaw/agents/flickclaw/sessions"
-    },
-    "stewardclaw": {
-      "workspace": "/home/martin/.openclaw/workspace-stewardclaw",
-      "sessionsDir": "/home/martin/.openclaw/agents/stewardclaw/sessions"
+    "<agent-id>": {
+      "workspace": "/path/to/workspace",
+      "sessionsDir": "/path/to/sessions"
     }
   },
   "jobs": [
@@ -54,7 +46,7 @@ ComputClaw/nexus/
       "enabled": true,
       "intervalMinutes": 60,
       "config": {
-        "agents": ["main", "flickclaw", "stewardclaw"]
+        "agents": ["<agent-id>"]
       }
     },
     {
@@ -99,8 +91,8 @@ ComputClaw/nexus/
 
 | Type | Direction | Description | Details |
 |------|-----------|-------------|---------|
-| `session_upload` | Push | Upload completed session transcripts | [worker-session-upload.md](./worker-session-upload.md) |
-| `webhook_pull` | Pull | Fetch webhook items, deliver to agents | [worker-webhook-pull.md](./worker-webhook-pull.md) |
+| `session_upload` | Push | Upload completed session transcripts | [session-upload.md](./jobs/session-upload.md) |
+| `webhook_pull` | Pull | Fetch webhook items, deliver to agents | [webhook-pull.md](./jobs/webhook-pull.md) |
 
 ## Main Loop
 
@@ -149,7 +141,7 @@ class Job:
 
 ## Deployment
 
-Systemd service on .126:
+Systemd service:
 
 ```ini
 [Unit]
@@ -158,8 +150,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=martin
-WorkingDirectory=/home/martin/repos/nexus/worker
+User=<user>
+WorkingDirectory=/path/to/nexus/worker
 ExecStart=/usr/bin/python3 -m nexus_worker.main
 Restart=always
 RestartSec=30
