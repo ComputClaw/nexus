@@ -2,66 +2,53 @@
 
 Technical specifications for developing the Nexus data ingestion service.
 
-## Purpose
+## Structure
 
-These specifications define what to build, not how to use existing functionality. Each spec covers:
-- Technical requirements
-- API designs  
-- Storage schemas
-- Processing logic
-- Implementation details
+```
+specs/
+├── server/              # Cloud service (Azure Functions)
+│   ├── sessions.md      # Session transcript storage
+│   ├── authentication.md
+│   ├── agent-integration.md
+│   └── administration.md
+├── client/              # Worker and jobs (Python)
+│   ├── worker-spec.md   # Worker architecture
+│   └── jobs/
+│       ├── session-upload-spec.md
+│       └── webhook-pull-spec.md
+└── outstanding.md       # Open items tracking
+```
 
-## Functional Areas
+## Server (Cloud Service)
 
-| Area | Implementation Status | Specification |
-|------|---------------------|---------------|
-| **Authentication** | ✅ Implemented | [📄](authentication.md) |
-| **Email & Calendar** | ✅ Implemented | [📄](email-calendar.md) |
-| **Meetings** | 📝 Spec Complete, Not Implemented | [📄](meetings.md) |
-| **Sessions** | ✅ Implemented | [📄](sessions.md) |
-| **Agent Integration** | ✅ Implemented | [📄](agent-integration.md) |
-| **Administration** | ✅ Implemented | [📄](administration.md) |
-| **Worker** | 📝 Spec Complete, Not Implemented | [📄](../worker/worker-spec.md) |
+Azure Functions that receive and store data.
+
+| Area | Status | Specification |
+|------|--------|---------------|
+| **Sessions** | ✅ Implemented | [📄](server/sessions.md) |
+| **Authentication** | ✅ Implemented | [📄](server/authentication.md) |
+| **Agent Integration** | ✅ Implemented | [📄](server/agent-integration.md) |
+| **Administration** | ✅ Implemented | [📄](server/administration.md) |
+
+## Client (Worker)
+
+Python service that syncs data between OpenClaw host and Nexus.
+
+| Area | Status | Specification |
+|------|--------|---------------|
+| **Worker** | 📝 Spec Complete | [📄](client/worker-spec.md) |
+| **session_upload job** | 📝 Spec Complete | [📄](client/jobs/session-upload-spec.md) |
+| **webhook_pull job** | 📝 Spec Complete | [📄](client/jobs/webhook-pull-spec.md) |
 
 ## Implementation Priority
 
-**Ready for implementation:**
-1. **Sessions worker** — Python service for session upload (spec complete)
-2. **Webhook ingestion** — Generic webhook receiver (spec needed)
-3. **Meetings integration** — Fireflies.ai webhook processing (needs API key)
+**Immediate:**
+1. Worker core implementation
+2. session_upload job
+3. Deploy and test end-to-end
 
-**Completed implementations:**
-- ✅ Sessions endpoint (POST /api/sessions)
-- ✅ Email/calendar ingestion (Microsoft Graph)
-- ✅ Items API (agent consumption)
-- ✅ Authentication system
-- ✅ Admin functions
+**Next:**
+4. Webhook ingestion endpoint (server)
+5. webhook_pull job (client)
 
 See [outstanding.md](outstanding.md) for detailed tracking.
-
-## Development Workflow
-
-1. **Read relevant specs** for the feature being built
-2. **Follow technical requirements** defined in specs
-3. **Implement according to schemas** and API designs
-4. **Test against spec requirements**
-5. **Update implementation status** when complete
-
-## Spec Format
-
-Each specification includes:
-- **Overview** - Purpose and scope
-- **Technical Requirements** - What must be built
-- **API Design** - Endpoints, requests, responses
-- **Storage Schema** - Table/blob structure
-- **Processing Logic** - Step-by-step algorithms
-- **Error Handling** - Failure modes and responses
-- **Integration Points** - How it connects to other components
-
-## Implementation Notes
-
-- Specs define contracts, not implementation details
-- Follow existing patterns from completed areas
-- Storage uses Azure Table Storage + Blob Storage
-- All endpoints require Function Key + API Key authentication
-- Error responses follow standard JSON format

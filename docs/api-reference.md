@@ -13,121 +13,16 @@ https://nexusassistant.azurewebsites.net/api/
 All requests require a Function Key:
 
 ```bash
-curl "https://nexus.../api/items?code=<function-key>"
+curl "https://nexus.../api/sessions?code=<function-key>"
 ```
 
-**Function Key** - Azure-managed, passed in URL as `code` parameter.
-
-Get your key from your administrator.
-
-## Items API
-
-### List Items
-
-Get available data for processing.
-
-```bash
-GET /api/items?code=<function-key>
-```
-
-**Parameters:**
-- `type` - Filter by type: `email`, `calendar`, `meeting` (optional)
-- `top` - Max results, default 100, max 500 (optional)
-
-**Response:**
-```json
-{
-  "items": [
-    {
-      "partitionKey": "email",
-      "rowKey": "msg123",
-      "subject": "Meeting Tomorrow",
-      "from": "alice@example.com",
-      "receivedAt": "2026-02-06T10:30:00Z",
-      "fileName": "2026-02-06-meeting-tomorrow.md"
-    }
-  ],
-  "count": 1
-}
-```
-
-### Get Full Content
-
-Fetch complete email body or meeting transcript.
-
-```bash
-GET /api/items/body?type=<type>&id=<rowKey>&code=<function-key>
-```
-
-**Parameters:**
-- `type` - Required: `email` or `meeting`
-- `id` - Required: `rowKey` from list response
-
-**Response:** Plain text content
-
-### Delete Item
-
-Remove item after successful processing.
-
-```bash
-DELETE /api/items?type=<type>&id=<rowKey>&code=<function-key>
-```
-
-**Response:** 204 No Content (success, even if already deleted)
-
-## Whitelist API
-
-Control which emails are accepted.
-
-### List Whitelist
-
-```bash
-GET /api/whitelist?code=<function-key>
-```
-
-**Response:**
-```json
-{
-  "entries": [
-    {
-      "type": "domain",
-      "value": "example.com",
-      "addedAt": "2026-02-06T10:00:00Z"
-    },
-    {
-      "type": "email", 
-      "value": "alice@other.com",
-      "addedAt": "2026-02-06T10:15:00Z"
-    }
-  ]
-}
-```
-
-### Add to Whitelist
-
-```bash
-POST /api/whitelist?code=<function-key>
-Content-Type: application/json
-
-{
-  "domains": ["example.com", "acme.org"],
-  "emails": ["bob@specific.com"]
-}
-```
-
-### Remove from Whitelist
-
-```bash
-DELETE /api/whitelist/{type}/{value}?code=<function-key>
-```
-
-**Examples:**
-- `DELETE /api/whitelist/domain/example.com`
-- `DELETE /api/whitelist/email/alice@example.com`
+**Function Key** — Azure-managed, passed in URL as `code` parameter.
 
 ## Sessions API
 
-Store OpenClaw session transcripts.
+Store OpenClaw session transcripts for analytics and archival.
+
+### Store Session
 
 ```bash
 POST /api/sessions?code=<function-key>
@@ -135,61 +30,56 @@ Content-Type: application/json
 
 {
   "agentId": "main",
-  "sessionId": "abc123-def456-...",
+  "sessionId": "0fca86c2-49d4-4985-b7ea-2ea80fa8556b",
   "transcript": "raw JSONL content..."
 }
 ```
 
-**Response:**
+**Response (200 OK):**
 ```json
 {
   "status": "ok",
-  "sessionId": "abc123-def456-...",
+  "sessionId": "0fca86c2-49d4-4985-b7ea-2ea80fa8556b",
   "stored": "2026-02-06T15:48:00Z"
 }
 ```
 
+**Response (400 Bad Request):**
+```json
+{
+  "error": "Missing required fields: agentId, sessionId, transcript"
+}
+```
+
+**Response (409 Conflict):**
+```json
+{
+  "error": "Session already exists",
+  "sessionId": "0fca86c2-49d4-4985-b7ea-2ea80fa8556b"
+}
+```
+
+**Response (413 Payload Too Large):**
+```json
+{
+  "error": "Transcript exceeds 1 MB limit"
+}
+```
+
+### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentId` | string | Yes | Agent identifier (main, flickclaw, etc.) |
+| `sessionId` | string | Yes | Session UUID (36 characters) |
+| `transcript` | string | Yes | Raw JSONL file content (max 1MB) |
+
 ## Error Responses
 
-### 400 Bad Request
-```json
-{
-  "error": "Invalid request",
-  "details": "Missing required field: type"
-}
-```
-
-### 401 Unauthorized
-
-Returned when the function key is missing or invalid.
-
-### 404 Not Found
-```json
-{
-  "error": "Not found",
-  "details": "Item not found"
-}
-```
-
-### 409 Conflict
-```json
-{
-  "error": "Already exists",
-  "sessionId": "abc123-def456-..."
-}
-```
-
-## Rate Limits
-
-No formal rate limits, but:
-- Recommended: max 1 request/second for polling
-- Use sync script instead of frequent API calls
-- Batch delete operations when possible
-
-## Best Practices
-
-1. **Use sync script** for regular data access
-2. **Delete after processing** to avoid re-syncing
-3. **Handle errors gracefully** - network issues are common
-4. **Filter by type** when you only need specific data
-5. **Fetch body only when needed** - saves bandwidth
+| Code | Description |
+|------|-------------|
+| 400 | Bad Request — Missing or invalid fields |
+| 401 | Unauthorized — Invalid function key |
+| 409 | Conflict — Session already exists |
+| 413 | Payload Too Large — Transcript exceeds 1MB |
+| 500 | Internal Server Error — Storage failure |

@@ -4,10 +4,9 @@ Local Python service that syncs data between OpenClaw agents and Nexus.
 
 ## What It Does
 
-- **Uploads session transcripts** - Finds completed sessions, uploads to Nexus for analytics
-- **Delivers webhook data** - Fetches webhook items from Nexus, writes to agent inboxes
-- **Runs on schedule** - Configurable intervals per job type
-- **Notifies agents** - Optional task spawning when jobs complete
+- **Uploads session transcripts** — Finds completed sessions, uploads to Nexus
+- **Delivers webhook data** — Fetches webhook items, writes to agent inboxes
+- **Runs on schedule** — Configurable intervals per job type
 
 ## Quick Start
 
@@ -27,28 +26,16 @@ Local Python service that syncs data between OpenClaw agents and Nexus.
    python -m nexus_worker
    ```
 
-## Configuration
+## Specifications
 
-Jobs are configured in `config.json`. Each job specifies:
-- **type** - What kind of work (`session_upload`, `webhook_pull`)
-- **args** - Job-specific parameters (paths, agent IDs)
-- **intervalMinutes** - How often to run
-- **notifyAgentId** - Optional agent to notify on completion
+All specs are in the [specs/client/](../specs/client/) folder:
 
-See [config.example.json](config.example.json) for examples.
-
-## Job Types
-
-| Type | Purpose | Specification |
-|------|---------|---------------|
-| **session_upload** | Upload completed session transcripts | [📄](jobs/session-upload-spec.md) |
-| **webhook_pull** | Deliver webhook items to agent inboxes | [📄](jobs/webhook-pull-spec.md) |
-
-## Documentation
-
-- **[Worker Specification](worker-spec.md)** - Complete technical spec
-- **[Job Specifications](jobs/)** - Individual job type specs
+| Spec | Description |
+|------|-------------|
+| [worker-spec.md](../specs/client/worker-spec.md) | Worker architecture, config, CLI |
+| [session-upload-spec.md](../specs/client/jobs/session-upload-spec.md) | Session upload job |
+| [webhook-pull-spec.md](../specs/client/jobs/webhook-pull-spec.md) | Webhook pull job |
 
 ## Status
 
-📝 **Designed** - Specifications complete, ready for implementation
+📝 **Designed** — Specifications complete, ready for implementation

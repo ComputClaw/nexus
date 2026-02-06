@@ -4,82 +4,42 @@ User guide for the Nexus data ingestion service.
 
 ## What is Nexus?
 
-Nexus collects data from external services and makes it available to OpenClaw agents through simple REST APIs.
+Nexus collects data from external services and stores it for OpenClaw agents.
 
-## Getting Started
-
-### For Agents
-
-1. **Get credentials** from your administrator:
-   - Function key (Azure)
-
-2. **Set up sync script:**
-   ```bash
-   cp scripts/.nexus-config.example.json scripts/.nexus-config.json
-   # Edit with your credentials and URLs
-   ```
-
-3. **Sync data:**
-   ```bash
-   node scripts/nexus-sync.js --with-body
-   ```
-
-### For Administrators
-
-See [Setup Guide](setup.md) for deployment and configuration.
-
-## What Data is Available?
+## Data Sources
 
 | Type | Source | Description |
 |------|--------|-------------|
-| **Email** | Microsoft Graph | Inbox and sent messages |
-| **Calendar** | Microsoft Graph | Meeting invites and events |
-| **Meetings** | Fireflies.ai | Transcripts and summaries |
-| **Sessions** | OpenClaw | Agent session transcripts |
+| **Sessions** | OpenClaw | Agent session transcripts for analytics |
+| **Webhooks** | External services | Generic webhook data (put.io, GitHub, etc.) |
 
-## How to Access Data
+## Sessions API
 
-### Sync Script (Recommended)
-
-Automated sync that downloads data as markdown files:
+Store session transcripts for analytics and archival.
 
 ```bash
-# Sync all data types
-node nexus-sync.js --with-body
+POST /api/sessions?code=<function-key>
+Content-Type: application/json
 
-# Sync only emails
-node nexus-sync.js --type email
-
-# Preview without downloading
-node nexus-sync.js --dry-run
+{
+  "agentId": "main",
+  "sessionId": "uuid-here",
+  "transcript": "raw JSONL content..."
+}
 ```
 
-### REST API (Advanced)
+See [API Reference](api-reference.md) for complete documentation.
 
-Direct API access for custom integrations:
+## Worker
 
-```bash
-# List available items
-curl "https://nexus.../api/items?code=<key>"
+The Nexus worker runs on the OpenClaw host and:
+- Uploads completed session transcripts to Nexus
+- Delivers webhook items to agent inboxes
 
-# Get full content
-curl "https://nexus.../api/items/body?type=email&id=<id>&code=<key>"
-
-# Delete after processing
-curl -X DELETE "https://nexus.../api/items?type=email&id=<id>&code=<key>"
-```
+See [worker/](../worker/) for specifications.
 
 ## Documentation
 
 | Topic | Description |
 |-------|-------------|
-| [Setup Guide](setup.md) | Deployment and configuration |
 | [API Reference](api-reference.md) | Complete API documentation |
-| [Sync Script](sync-script.md) | Using the automated sync |
-| [Troubleshooting](troubleshooting.md) | Common issues and solutions |
-
-## Support
-
-- Check [Troubleshooting](troubleshooting.md) for common issues
-- Review logs in Azure Portal → Function App → Monitor
-- Contact your administrator for configuration issues

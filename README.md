@@ -4,11 +4,9 @@ Data ingestion service for [OpenClaw](https://github.com/openclaw/openclaw) agen
 
 ## What It Does
 
-Nexus ingests data from external services and stores it for agent consumption. Sources include email, calendar, meetings, webhooks, and session transcripts.
+Nexus ingests data from external services and stores it for agent consumption.
 
 **Current Sources:**
-- 📧 **Email & Calendar** — Microsoft Graph webhooks
-- 🎤 **Meetings** — Fireflies.ai transcripts and summaries  
 - 🔗 **Webhooks** — Generic endpoint for external services
 - 📝 **Sessions** — OpenClaw session transcripts for analytics
 
@@ -16,34 +14,30 @@ Nexus ingests data from external services and stores it for agent consumption. S
 
 ```
 External Services ──webhook──▶ Azure Functions ──▶ Table Storage ──▶ Agents
-                                                 ──▶ Blob Storage
 ```
 
 **Components:**
-- **HTTP endpoints** — Receive webhooks and data from external sources
-- **Queue processing** — Async processing for reliability and scale
-- **Table Storage** — Structured data and metadata
-- **Blob Storage** — Full content (transcripts, email bodies)
-- **Local worker** — Delivers webhook items to agent inboxes
+- **HTTP endpoints** — Receive webhooks and data
+- **Table Storage** — Structured data storage
+- **Local worker** — Syncs data between host and Nexus
 
 ## Tech Stack
 
 - **Runtime:** C# .NET 8, Azure Functions v4
-- **Storage:** Azure Table Storage + Blob Storage
+- **Storage:** Azure Table Storage
 - **Worker:** Python (local process on OpenClaw host)
 
 ## Status
 
-✅ **Email/Calendar** — Live  
-✅ **Sessions** — Live
+✅ **Sessions** — Live  
 📝 **Webhooks** — Designed  
-⬜ **Meetings** — Pending API key
+📝 **Worker** — Designed
 
 ## Documentation
 
-- **[API Reference](docs/api-reference.md)** — Endpoints and schemas
-- **[Sync Consumer](docs/sync-consumer.md)** — Agent integration
-- **[Worker Spec](worker/SPEC.md)** — Local worker design
+- **[docs/](docs/)** — User documentation
+- **[specs/](specs/)** — Development specifications
+- **[worker/](worker/)** — Worker specifications
 
 ## Project Structure
 
@@ -51,8 +45,8 @@ External Services ──webhook──▶ Azure Functions ──▶ Table Storage
 nexus/
 ├── src/Nexus.Ingest/       # Azure Functions (C# .NET 8)
 ├── worker/                 # Local worker (Python)
-├── scripts/                # Sync utilities
-├── docs/                   # Documentation
+├── docs/                   # User documentation
+├── specs/                  # Development specifications
 └── README.md
 ```
 

@@ -46,15 +46,6 @@ Tracking open items, decisions needed, and gaps across Nexus components.
 
 ---
 
-## Email/Calendar (Live)
-
-| # | Item | Notes | Status |
-|---|------|-------|--------|
-| E1 | Subscription renewal | Auto-renew every 5 days | ✅ |
-| E2 | Whitelist management | API only (no UI) | ✅ |
-
----
-
 ## Webhook Ingestion
 
 | # | Item | Notes | Status |
@@ -63,16 +54,6 @@ Tracking open items, decisions needed, and gaps across Nexus components.
 | H2 | WebhookItems table | Store pending items | ⬜ |
 | H3 | Worker pull job | Deliver to agent inboxes | ⬜ |
 | H4 | put.io integration | Register webhook URL | ⬜ |
-
----
-
-## Meetings (Fireflies)
-
-| # | Item | Notes | Status |
-|---|------|-------|--------|
-| F1 | API key | Need from Martin | ⬜ |
-| F2 | Webhook endpoint | Receive transcript notifications | ⬜ |
-| F3 | Meeting processing | Fetch and store transcripts | ⬜ |
 
 ---
 
@@ -99,8 +80,7 @@ Tracking open items, decisions needed, and gaps across Nexus components.
 6. put.io integration
 
 **Later:**
-7. Fireflies integration (needs API key)
-8. Analytics endpoints
+7. Analytics endpoints
 
 ---
 
