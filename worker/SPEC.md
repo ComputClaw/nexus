@@ -1,143 +1,330 @@
 # Nexus Worker Specification
 
-Local Python process that syncs data from Nexus (Azure) to agent workspaces and triggers processing via OpenClaw.
+Local Python service that runs jobs to sync data between the OpenClaw host and Nexus.
 
 ## Overview
 
-The worker bridges Nexus (cloud storage) and OpenClaw agents (local). It:
+The worker is a scheduler that runs configured jobs at intervals. Jobs do work and return `JobResult`. Worker handles notifications if configured.
 
-1. Polls Nexus for pending items
-2. Writes items to agent inbox folders
-3. Spawns isolated agent tasks
-4. Marks items as processed
+**Principles:**
+- Jobs are pure — receive args, return `JobResult`, no side effects
+- Worker handles cross-cutting concerns: scheduling, logging, notifications
+- All config in one file — no hardcoded paths or agent IDs
+- Fail gracefully — log errors, continue running
 
-**Key benefits:**
-- **Runs in the main agent** — can be triggered via cron or heartbeat, no separate daemon needed
-- **Receiving agents need no credentials** — data is delivered as local files to their inbox
-
-## Requirements
-
-### Functional
-
-| ID | Requirement |
-|----|-------------|
-| W-01 | Poll Nexus API at configurable interval (default: 5 min) |
-| W-02 | Fetch pending items grouped by target agent |
-| W-03 | Write each item as JSON file to agent's `inbox/webhooks/` folder |
-| W-04 | Create inbox directory if it doesn't exist |
-| W-05 | Spawn isolated agent task via `sessions_spawn` after writing |
-| W-06 | Mark items as processed in Nexus after successful spawn |
-| W-07 | Continue running on errors (log and retry next cycle) |
-| W-08 | Support `--once` flag for single poll (cron mode) |
-
-### Configuration
-
-| ID | Requirement |
-|----|-------------|
-| C-01 | Nexus API URL (required) |
-| C-02 | Nexus API key (required) |
-| C-03 | Poll interval in seconds (default: 300) |
-| C-04 | Agent workspace paths (map of agentId → path) |
-| C-05 | Config file path via `--config` flag (default: `config.json`) |
-
-### Error Handling
-
-| ID | Requirement |
-|----|-------------|
-| E-01 | Log all errors to stderr |
-| E-02 | Don't exit on transient errors (network, API) |
-| E-03 | Exit on config errors (missing file, invalid JSON) |
-| E-04 | Retry failed items on next poll cycle |
-
-## API Dependencies
-
-### Nexus API
+## Architecture
 
 ```
-GET /api/webhook/pending?code={apiKey}
-
-Response:
-{
-  "flickclaw": [
-    {
-      "id": "2026-02-06T12:00:00_abc123",
-      "source": "putio",
-      "receivedAt": "2026-02-06T12:00:00Z",
-      "payload": { ... }
-    }
-  ],
-  "stewardclaw": [ ... ]
-}
+┌─────────────────────────────────────────────────────────────┐
+│                        Nexus Worker                         │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                     Config                            │  │
+│  │  url, apiKey                                         │  │
+│  │  jobs: [{id, type, description, interval, args,      │  │
+│  │          notifyAgentId?}]                            │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                            │                                │
+│                            ▼                                │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                    Scheduler                          │  │
+│  │  - Tracks last run time per job                      │  │
+│  │  - Runs jobs when interval elapsed                   │  │
+│  │  - Sends JobResult to notifyAgentId (if set)         │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                            │                                │
+│         ┌──────────────────┼──────────────────┐            │
+│         ▼                  ▼                  ▼            │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
+│  │ session_    │    │ webhook_    │    │  (future)   │    │
+│  │ upload      │    │ pull        │    │             │    │
+│  │ → JobResult │    │ → JobResult │    │             │    │
+│  └─────────────┘    └─────────────┘    └─────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+           │                                    │
+           ▼                                    ▼
+    ┌─────────────┐                      ┌─────────────┐
+    │   Nexus     │                      │  OpenClaw   │
+    │  (Azure)    │                      │  (notify)   │
+    └─────────────┘                      └─────────────┘
 ```
 
-```
-DELETE /api/webhook/items?code={apiKey}
+## Configuration
 
-Body:
-{
-  "ids": ["2026-02-06T12:00:00_abc123", ...]
-}
-```
+### File Location
 
-### OpenClaw Gateway
+`config.json` in worker directory, or specified via `--config` flag.
 
-```bash
-openclaw gateway call sessions_spawn --params '{
-  "agentId": "flickclaw",
-  "task": "New webhook items (2) in inbox/webhooks/. Process and archive.",
-  "cleanup": "delete"
-}'
-```
-
-## File Output
-
-### Location
-
-```
-{agent_workspace}/inbox/webhooks/{source}_{id}.json
-```
-
-Example:
-```
-/home/martin/.openclaw/workspace-flickclaw/inbox/webhooks/putio_2026-02-06T12:00:00_abc123.json
-```
-
-### Content
-
-Raw webhook payload as received by Nexus (JSON, pretty-printed).
-
-## Configuration File
+### Schema
 
 ```json
 {
-  "nexus_url": "https://nexusassistant.azurewebsites.net/api",
-  "api_key": "your-function-key",
-  "poll_interval_seconds": 300,
-  "agents": {
-    "flickclaw": "/home/martin/.openclaw/workspace-flickclaw",
-    "stewardclaw": "/home/martin/.openclaw/workspace-stewardclaw",
-    "main": "/home/martin/.openclaw/workspace"
-  }
+  "url": "https://nexusassistant.azurewebsites.net/api",
+  "apiKey": "function-key-here",
+  "jobs": [
+    {
+      "id": "main-sessions",
+      "type": "session_upload",
+      "description": "Upload main agent sessions to Nexus",
+      "intervalMinutes": 60,
+      "args": [
+        "/home/martin/.openclaw/agents/main/sessions",
+        "/home/martin/.openclaw/agents/main/sessions/archive",
+        "main"
+      ]
+    },
+    {
+      "id": "flickclaw-sessions",
+      "type": "session_upload",
+      "description": "Upload FlickClaw sessions to Nexus",
+      "intervalMinutes": 60,
+      "notifyAgentId": "flickclaw",
+      "args": [
+        "/home/martin/.openclaw/agents/flickclaw/sessions",
+        "/home/martin/.openclaw/agents/flickclaw/sessions/archive",
+        "flickclaw"
+      ]
+    }
+  ]
 }
+```
+
+### Config Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `url` | string | Yes | Nexus API base URL |
+| `apiKey` | string | Yes | Azure Function key for auth |
+| `jobs` | array | Yes | List of job configurations |
+
+### Job Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique job identifier (for logging) |
+| `type` | string | Yes | Job type: `session_upload`, `webhook_pull` |
+| `description` | string | Yes | Human-readable description |
+| `intervalMinutes` | int | Yes | Minutes between runs (daemon mode) |
+| `args` | array | Yes | Job-specific arguments (positional) |
+| `notifyAgentId` | string | No | Agent to notify with JobResult (omit = no notification) |
+
+## Job Types
+
+### session_upload
+
+Uploads completed session transcripts to Nexus.
+
+**Args (positional):**
+
+| Position | Name | Description |
+|----------|------|-------------|
+| 0 | sessionsDir | Path to sessions directory |
+| 1 | archiveDir | Path to move uploaded files to |
+| 2 | agentId | Agent identifier sent to Nexus |
+
+**Example:**
+```json
+"args": ["/home/martin/.openclaw/agents/main/sessions", "/home/martin/.openclaw/agents/main/sessions/archive", "main"]
+```
+
+**Logic:**
+
+1. Read `sessions.json` from `sessionsDir` → list of active session IDs
+2. List all `*.jsonl` files in `sessionsDir`
+3. Filter to files whose name (minus extension) is NOT in active sessions
+4. For each completed session:
+   a. Read file content
+   b. POST to `{url}/sessions?code={apiKey}`
+   c. On success: move file to `archiveDir`
+   d. On failure: log error, continue to next file
+5. Return results: `{uploaded: N, failed: N, errors: [...]}`
+
+**Nexus Request:**
+
+```
+POST /api/sessions?code={apiKey}
+Content-Type: application/json
+
+{
+  "agentId": "main",
+  "sessionId": "abc123",
+  "transcript": "...raw jsonl content..."
+}
+```
+
+### webhook_pull
+
+Pulls pending webhook items from Nexus and delivers to agent inboxes.
+
+**Args (positional):**
+
+| Position | Name | Description |
+|----------|------|-------------|
+| 0 | agentId | Agent to fetch items for |
+| 1 | workspace | Agent workspace path |
+| 2 | inboxDir | Relative inbox path (optional, default: `inbox/webhooks`) |
+
+**Example:**
+```json
+"args": ["flickclaw", "/home/martin/.openclaw/workspace-flickclaw", "inbox/webhooks"]
+```
+
+**Logic:**
+
+1. GET `{url}/webhook/pending?agentId={agentId}&code={apiKey}`
+2. For each item:
+   a. Write to `{workspace}/{inboxDir}/{source}_{id}.json`
+   b. Collect item IDs
+3. DELETE `{url}/webhook/items?code={apiKey}` with collected IDs
+4. Return results: `{delivered: N, errors: [...]}`
+
+## Job Interface
+
+All jobs implement:
+
+```python
+class Job(Protocol):
+    id: str
+    type: str
+    description: str
+    interval_minutes: int
+    args: list[str]
+    notify_agent_id: str | None
+    last_run: datetime | None
+    
+    def run(self, nexus_url: str, api_key: str) -> JobResult:
+        """Execute job. Always returns JobResult, never raises."""
+        ...
+
+@dataclass
+class JobResult:
+    job_id: str
+    success: bool
+    message: str              # Human-readable summary
+    items_processed: int
+    errors: list[str]         # Individual error messages
 ```
 
 ## CLI Interface
 
 ```
-usage: nexus-worker.py [-h] [--config CONFIG] [--once] [--verbose]
+usage: nexus-worker [-h] [--config CONFIG] [--job JOB] [--verbose]
 
-Nexus Worker - syncs webhook data to agent workspaces
+Nexus Worker - syncs data between OpenClaw and Nexus
 
 optional arguments:
-  -h, --help       show this help message and exit
-  --config CONFIG  path to config file (default: config.json)
-  --once           run once and exit (for cron)
-  --verbose        enable debug logging
+  -h, --help       Show help message
+  --config CONFIG  Path to config file (default: config.json)
+  --job JOB        Run specific job by ID (ignores intervalMinutes)
+  --verbose        Enable debug logging
 ```
 
-## Deployment Options
+**Behavior:**
+- No arguments → daemon mode (runs forever, respects `intervalMinutes`)
+- `--job <id>` → run that job immediately, then exit
 
-### Systemd Service (recommended)
+Config is always required — provides Nexus credentials and job definitions.
+
+**Examples:**
+
+```bash
+# Daemon mode (runs forever, jobs run on their intervals)
+python -m nexus_worker
+
+# Run specific job immediately and exit
+python -m nexus_worker --job main-sessions
+
+# Custom config location (daemon mode)
+python -m nexus_worker --config /etc/nexus/config.json
+
+# Verbose + specific job
+python -m nexus_worker --job main-sessions --verbose
+```
+
+## Notifications
+
+Jobs always return a `JobResult`. If `notifyAgentId` is set on the job, the worker spawns a task on that agent with the full result JSON.
+
+**How:**
+```bash
+openclaw sessions spawn --agent {notifyAgentId} --task "Nexus job completed. JobResult: {full JSON}"
+```
+
+**When:**
+- Job completes (success or failure)
+- `notifyAgentId` is configured on the job
+
+**JobResult format:**
+```json
+{
+  "jobId": "main-sessions",
+  "success": true,
+  "message": "Uploaded 3 sessions",
+  "itemsProcessed": 3,
+  "errors": []
+}
+```
+
+Agent receives the complete JobResult JSON and can process/respond accordingly.
+
+If `notifyAgentId` is not set, the job runs silently (results logged only).
+
+## Scheduler Loop
+
+```python
+def run_scheduler(config: Config):
+    jobs = load_jobs(config)
+    
+    while True:
+        for job in jobs:
+            if not job.is_due():
+                continue
+            
+            log.info(f"Running job: {job.id}")
+            result = job.run(config.url, config.api_key)
+            job.mark_run()
+            
+            log.info(f"Job {job.id}: {result.message}")
+            if result.errors:
+                for err in result.errors:
+                    log.warning(f"Job {job.id}: {err}")
+            
+            if job.notify_agent_id:
+                notify_agent(job.notify_agent_id, result)
+        
+        sleep(60)  # Check every minute
+```
+
+## Error Handling
+
+| Scenario | Behavior |
+|----------|----------|
+| Config file missing | Exit with error |
+| Config invalid JSON | Exit with error |
+| Nexus API unreachable | Log error, retry next cycle |
+| Single file upload fails | Log error, continue to next file |
+| Job raises exception | Log error, mark job as run, continue |
+
+## Logging
+
+Format: `{timestamp} [{level}] [{job_id}] {message}`
+
+```
+2026-02-06T14:00:00 [INFO] [scheduler] Starting Nexus Worker
+2026-02-06T14:00:00 [INFO] [scheduler] Loaded 3 jobs
+2026-02-06T14:00:01 [INFO] [main-sessions] Running job
+2026-02-06T14:00:01 [INFO] [main-sessions] Found 2 completed sessions
+2026-02-06T14:00:02 [INFO] [main-sessions] Uploaded: abc123.jsonl
+2026-02-06T14:00:03 [INFO] [main-sessions] Uploaded: def456.jsonl
+2026-02-06T14:00:03 [INFO] [main-sessions] Archived 2 files
+2026-02-06T14:00:03 [INFO] [main-sessions] Job complete: 2 uploaded, 0 failed
+2026-02-06T14:00:03 [INFO] [scheduler] Next check in 60s
+```
+
+## Deployment
+
+### Systemd Service
 
 ```ini
 [Unit]
@@ -147,45 +334,51 @@ After=network.target
 [Service]
 Type=simple
 User=martin
-WorkingDirectory=/home/martin/.openclaw/workspace/repos/nexus/worker
-ExecStart=/usr/bin/python3 nexus-worker.py
+WorkingDirectory=/home/martin/repos/nexus/worker
+ExecStart=/usr/bin/python3 -m nexus_worker
 Restart=always
-RestartSec=10
+RestartSec=30
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-### Cron (alternative)
+## File Structure
 
 ```
-*/5 * * * * cd /path/to/nexus/worker && python3 nexus-worker.py --once >> /var/log/nexus-worker.log 2>&1
+worker/
+├── nexus_worker/
+│   ├── __init__.py
+│   ├── __main__.py          # Entry point
+│   ├── config.py            # Config loading/validation
+│   ├── scheduler.py         # Main loop
+│   └── jobs/
+│       ├── __init__.py
+│       ├── base.py          # Job protocol/base class
+│       ├── session_upload.py
+│       └── webhook_pull.py
+├── config.json
+├── config.example.json
+├── requirements.txt
+├── README.md
+└── SPEC.md
 ```
 
-## Logging
-
-Format: `{timestamp} [{level}] {message}`
+## Dependencies
 
 ```
-2026-02-06T13:00:00 [INFO] Polling Nexus for pending items
-2026-02-06T13:00:01 [INFO] Found 2 items for flickclaw
-2026-02-06T13:00:01 [INFO] Wrote: inbox/webhooks/putio_abc123.json
-2026-02-06T13:00:01 [INFO] Wrote: inbox/webhooks/putio_def456.json
-2026-02-06T13:00:02 [INFO] Spawned task for flickclaw
-2026-02-06T13:00:02 [INFO] Marked 2 items as processed
-2026-02-06T13:00:02 [INFO] Next poll in 300s
+# requirements.txt
+requests>=2.28.0
 ```
 
 ## Security
 
-- API key stored in config file (not in code)
-- Config file should be readable only by worker user
-- Worker runs on same host as OpenClaw (localhost communication)
-- No external network exposure required
+- API key in config file, not in code
+- Config file should be `chmod 600` (owner read/write only)
+- Worker runs as unprivileged user
+- No external network exposure — outbound only to Nexus
 
-## Dependencies
+---
 
-- Python 3.8+
-- `requests` library
-- OpenClaw CLI installed and configured
+*Status: Specification complete, pending implementation*
