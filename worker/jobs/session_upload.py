@@ -165,8 +165,8 @@ class SessionUploadJob(Job):
                 return session_id
         return None
     
-    # Maximum transcript size that Nexus will accept (1 MB)
-    MAX_TRANSCRIPT_BYTES = 1_048_576
+    # Maximum transcript size that Nexus will accept (10 MB - blob storage)
+    MAX_TRANSCRIPT_BYTES = 10_485_760
 
     def _upload_session(
         self,

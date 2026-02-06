@@ -4,8 +4,8 @@ import logging
 import time
 from typing import Any
 
-from .config import Config, JobConfig
-from .jobs import Job, JobResult, SessionUploadJob
+from config import Config, JobConfig
+from jobs import Job, JobResult, SessionUploadJob
 
 log = logging.getLogger(__name__)
 

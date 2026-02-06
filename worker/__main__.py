@@ -4,8 +4,8 @@ import argparse
 import logging
 import sys
 
-from .config import load_config
-from .scheduler import run_scheduler, run_single_job
+from config import load_config
+from scheduler import run_scheduler, run_single_job
 
 
 def setup_logging(verbose: bool = False) -> None:

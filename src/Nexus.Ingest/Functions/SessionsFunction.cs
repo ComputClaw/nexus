@@ -1,6 +1,7 @@
 using System.Net;
+using System.Text;
 using Azure;
-using Azure.Data.Tables;
+using Azure.Storage.Blobs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -9,21 +10,22 @@ using Nexus.Ingest.Models;
 namespace Nexus.Ingest.Functions;
 
 /// <summary>
-/// Stores raw OpenClaw session transcripts for analytics and archival.
+/// Stores raw OpenClaw session transcripts in Blob Storage.
 /// Auth: Function key (Azure).
 /// </summary>
 public sealed class SessionsFunction
 {
-    private const int MaxTranscriptBytes = 1_048_576; // 1 MB
+    private const int MaxTranscriptBytes = 10_485_760; // 10 MB (blob can handle it)
+    private const string ContainerName = "sessions";
 
-    private readonly TableClient _sessionsTable;
+    private readonly BlobContainerClient _container;
     private readonly ILogger<SessionsFunction> _logger;
 
     public SessionsFunction(
-        TableServiceClient tableService,
+        BlobServiceClient blobService,
         ILogger<SessionsFunction> logger)
     {
-        _sessionsTable = tableService.GetTableClient("Sessions");
+        _container = blobService.GetBlobContainerClient(ContainerName);
         _logger = logger;
     }
 
@@ -41,7 +43,7 @@ public sealed class SessionsFunction
             {
                 _logger.LogWarning("Request body too large: {ContentLength} bytes", contentLength);
                 var large = req.CreateResponse(HttpStatusCode.RequestEntityTooLarge);
-                await large.WriteAsJsonAsync(new { error = $"Request body too large ({contentLength} bytes). Maximum transcript size is {MaxTranscriptBytes} bytes." }, ct);
+                await large.WriteAsJsonAsync(new { error = $"Request body too large ({contentLength} bytes). Maximum is {MaxTranscriptBytes} bytes." }, ct);
                 return large;
             }
         }
@@ -77,24 +79,26 @@ public sealed class SessionsFunction
             return bad;
         }
 
-        // Validate transcript size ≤ 1 MB
-        if (System.Text.Encoding.UTF8.GetByteCount(body.Transcript) > MaxTranscriptBytes)
+        // Validate transcript size
+        var transcriptBytes = Encoding.UTF8.GetByteCount(body.Transcript);
+        if (transcriptBytes > MaxTranscriptBytes)
         {
             var large = req.CreateResponse(HttpStatusCode.RequestEntityTooLarge);
-            await large.WriteAsJsonAsync(new { error = "Transcript exceeds 1 MB limit" }, ct);
+            await large.WriteAsJsonAsync(new { error = $"Transcript exceeds {MaxTranscriptBytes / 1024 / 1024} MB limit" }, ct);
             return large;
         }
 
-        var now = DateTime.UtcNow;
-        var entity = new TableEntity(now.ToString("yyyy-MM-dd"), body.SessionId)
-        {
-            { "AgentId", body.AgentId },
-            { "RawData", body.Transcript }
-        };
+        // Ensure container exists
+        await _container.CreateIfNotExistsAsync(cancellationToken: ct);
+
+        // Upload to blob: sessions/{agentId}/{sessionId}.jsonl
+        var blobPath = $"{body.AgentId}/{body.SessionId}.jsonl";
+        var blobClient = _container.GetBlobClient(blobPath);
 
         try
         {
-            await _sessionsTable.AddEntityAsync(entity, ct);
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(body.Transcript));
+            await blobClient.UploadAsync(stream, overwrite: false, ct);
         }
         catch (RequestFailedException ex) when (ex.Status == 409)
         {
@@ -104,10 +108,18 @@ public sealed class SessionsFunction
             return conflict;
         }
 
-        _logger.LogInformation("Stored session {SessionId} for agent {AgentId}", body.SessionId, body.AgentId);
+        _logger.LogInformation("Stored session {SessionId} for agent {AgentId} ({Bytes} bytes)",
+            body.SessionId, body.AgentId, transcriptBytes);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(new { status = "ok", sessionId = body.SessionId, stored = now }, ct);
+        await response.WriteAsJsonAsync(new
+        {
+            status = "ok",
+            sessionId = body.SessionId,
+            path = blobPath,
+            bytes = transcriptBytes,
+            stored = DateTime.UtcNow
+        }, ct);
         return response;
     }
 }
