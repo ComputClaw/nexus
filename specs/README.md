@@ -1,45 +1,63 @@
-# Nexus Documentation
+# Nexus Specifications
 
-Data ingestion service for OpenClaw agents.
+Technical specifications for developing the Nexus data ingestion service.
+
+## Purpose
+
+These specifications define what to build, not how to use existing functionality. Each spec covers:
+- Technical requirements
+- API designs  
+- Storage schemas
+- Processing logic
+- Implementation details
 
 ## Functional Areas
 
-| Area | Purpose | Documentation |
-|------|---------|---------------|
-| **Authentication** | Security model and API keys | [📄](authentication.md) |
-| **Email & Calendar** | Microsoft Graph integration | [📄](email-calendar.md) |
-| **Meetings** | Fireflies.ai transcripts | [📄](meetings.md) |
-| **Sessions** | OpenClaw session storage | [📄](sessions.md) |  
-| **Agent Integration** | How agents consume data | [📄](agent-integration.md) |
-| **Administration** | Management and monitoring | [📄](administration.md) |
+| Area | Implementation Status | Specification |
+|------|---------------------|---------------|
+| **Authentication** | ✅ Implemented | [📄](authentication.md) |
+| **Email & Calendar** | ✅ Implemented | [📄](email-calendar.md) |
+| **Meetings** | 📝 Spec Complete, Not Implemented | [📄](meetings.md) |
+| **Sessions** | 📝 Spec Complete, Not Implemented | [📄](sessions.md) |
+| **Agent Integration** | ✅ Implemented | [📄](agent-integration.md) |
+| **Administration** | ✅ Implemented | [📄](administration.md) |
 
-## Quick Start
+## Implementation Priority
 
-**For Agents:**
-1. Configure credentials in sync script
-2. Run `node scripts/nexus-sync.js --with-body`
-3. Process files from `data/inbox/`
+**Ready for implementation:**
+1. **Sessions endpoint** - POST /api/sessions for transcript storage (spec complete)
+2. **Sessions worker** - Python service for session upload (spec complete)
+3. **Meetings integration** - Fireflies.ai webhook processing (spec complete, needs API key)
 
-**For Administrators:**
-1. Set up Azure Function App with required settings
-2. Bootstrap Graph subscriptions
-3. Configure webhooks for external services
+**Completed implementations:**
+- Email/calendar ingestion (Microsoft Graph)
+- Items API (agent consumption)
+- Authentication system
+- Admin functions
 
-## Data Flow
+## Development Workflow
 
-```
-External Sources → Nexus Functions → Table/Blob Storage → Agent APIs → Local Processing
-```
+1. **Read relevant specs** for the feature being built
+2. **Follow technical requirements** defined in specs
+3. **Implement according to schemas** and API designs
+4. **Test against spec requirements**
+5. **Update implementation status** when complete
 
-**Sources:** Microsoft Graph, Fireflies.ai, OpenClaw sessions, generic webhooks
-**Storage:** Azure Table Storage (metadata) + Blob Storage (full content)  
-**Consumption:** REST APIs + sync scripts + local worker
+## Spec Format
 
-## Status
+Each specification includes:
+- **Overview** - Purpose and scope
+- **Technical Requirements** - What must be built
+- **API Design** - Endpoints, requests, responses
+- **Storage Schema** - Table/blob structure
+- **Processing Logic** - Step-by-step algorithms
+- **Error Handling** - Failure modes and responses
+- **Integration Points** - How it connects to other components
 
-| Integration | Status | Notes |
-|-------------|--------|-------|
-| Email/Calendar | ✅ Live | Microsoft Graph webhooks |
-| Meetings | ⬜ Pending | Requires Fireflies API key |
-| Sessions | 📝 Designed | Endpoint + worker spec complete |
-| Webhooks | 📝 Designed | Generic webhook receiver |
+## Implementation Notes
+
+- Specs define contracts, not implementation details
+- Follow existing patterns from completed areas
+- Storage uses Azure Table Storage + Blob Storage
+- All endpoints require Function Key + API Key authentication
+- Error responses follow standard JSON format
