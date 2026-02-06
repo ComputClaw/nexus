@@ -33,7 +33,31 @@ public sealed class SessionsFunction
         HttpRequestData req,
         CancellationToken ct)
     {
-        var body = await req.ReadFromJsonAsync<SessionRequest>(ct);
+        // Check Content-Length header first to fail fast on oversized payloads
+        if (req.Headers.TryGetValues("Content-Length", out var contentLengthValues))
+        {
+            var contentLengthStr = contentLengthValues.FirstOrDefault();
+            if (long.TryParse(contentLengthStr, out var contentLength) && contentLength > MaxTranscriptBytes * 2)
+            {
+                _logger.LogWarning("Request body too large: {ContentLength} bytes", contentLength);
+                var large = req.CreateResponse(HttpStatusCode.RequestEntityTooLarge);
+                await large.WriteAsJsonAsync(new { error = $"Request body too large ({contentLength} bytes). Maximum transcript size is {MaxTranscriptBytes} bytes." }, ct);
+                return large;
+            }
+        }
+
+        SessionRequest? body;
+        try
+        {
+            body = await req.ReadFromJsonAsync<SessionRequest>(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to deserialize request body");
+            var bad = req.CreateResponse(HttpStatusCode.BadRequest);
+            await bad.WriteAsJsonAsync(new { error = "Invalid JSON or request body too large" }, ct);
+            return bad;
+        }
 
         if (body is null
             || string.IsNullOrWhiteSpace(body.AgentId)

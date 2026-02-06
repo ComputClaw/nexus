@@ -8,7 +8,7 @@ from typing import Any
 
 import requests
 
-from .base import Job, JobResult
+from jobs.base import Job, JobResult
 
 log = logging.getLogger(__name__)
 
@@ -165,6 +165,9 @@ class SessionUploadJob(Job):
                 return session_id
         return None
     
+    # Maximum transcript size that Nexus will accept (1 MB)
+    MAX_TRANSCRIPT_BYTES = 1_048_576
+
     def _upload_session(
         self,
         agent_id: str,
@@ -174,6 +177,15 @@ class SessionUploadJob(Job):
         api_key: str
     ) -> bool:
         """Upload a session to Nexus."""
+        # Check file size first to skip oversized files
+        file_size = session_file.stat().st_size
+        if file_size > self.MAX_TRANSCRIPT_BYTES:
+            log.warning(
+                f"Session {session_id} too large ({file_size:,} bytes), "
+                f"max is {self.MAX_TRANSCRIPT_BYTES:,} bytes — skipping"
+            )
+            return False
+
         # Read transcript content
         transcript = session_file.read_text(encoding="utf-8")
         
