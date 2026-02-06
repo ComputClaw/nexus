@@ -13,6 +13,10 @@ The worker runs on the same host as OpenClaw. It:
 
 This is a **push model** — agents don't poll Nexus directly. The worker delivers data to them.
 
+**Key benefits:**
+- Can run in the **main agent** via cron/heartbeat (no separate daemon needed)
+- **Receiving agents need no credentials** — data arrives as local files in their inbox
+
 ## Setup
 
 ```bash

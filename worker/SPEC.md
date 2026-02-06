@@ -11,6 +11,10 @@ The worker bridges Nexus (cloud storage) and OpenClaw agents (local). It:
 3. Spawns isolated agent tasks
 4. Marks items as processed
 
+**Key benefits:**
+- **Runs in the main agent** — can be triggered via cron or heartbeat, no separate daemon needed
+- **Receiving agents need no credentials** — data is delivered as local files to their inbox
+
 ## Requirements
 
 ### Functional
