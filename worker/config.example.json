@@ -1,40 +1,23 @@
 {
-  "url": "https://nexusassistant.azurewebsites.net/api",
-  "apiKey": "your-function-key-here",
+  "nexus": {
+    "endpoint": "https://nexusassistant.azurewebsites.net/api",
+    "apiKey": "your-function-key-here"
+  },
+  "agents": {
+    "agent1": {
+      "workspace": "/path/to/workspace",
+      "sessionsDir": "/path/to/sessions"
+    }
+  },
   "jobs": [
     {
-      "id": "main-sessions",
+      "id": "session-upload",
       "type": "session_upload",
-      "description": "Upload main agent sessions to Nexus",
+      "enabled": true,
       "intervalMinutes": 60,
-      "args": [
-        "/home/martin/.openclaw/agents/main/sessions",
-        "/home/martin/.openclaw/agents/main/sessions/archive",
-        "main"
-      ]
-    },
-    {
-      "id": "flickclaw-sessions",
-      "type": "session_upload",
-      "description": "Upload FlickClaw sessions to Nexus",
-      "intervalMinutes": 60,
-      "notifyAgentId": "flickclaw",
-      "args": [
-        "/home/martin/.openclaw/agents/flickclaw/sessions",
-        "/home/martin/.openclaw/agents/flickclaw/sessions/archive",
-        "flickclaw"
-      ]
-    },
-    {
-      "id": "stewardclaw-sessions",
-      "type": "session_upload",
-      "description": "Upload StewardClaw sessions to Nexus",
-      "intervalMinutes": 60,
-      "args": [
-        "/home/martin/.openclaw/agents/stewardclaw/sessions",
-        "/home/martin/.openclaw/agents/stewardclaw/sessions/archive",
-        "stewardclaw"
-      ]
+      "config": {
+        "agents": ["agent1"]
+      }
     }
   ]
 }
