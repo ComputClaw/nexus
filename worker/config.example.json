@@ -1,0 +1,10 @@
+{
+  "nexus_url": "https://nexusassistant.azurewebsites.net/api",
+  "api_key": "your-function-key-here",
+  "poll_interval_seconds": 300,
+  "agents": {
+    "flickclaw": "/home/martin/.openclaw/workspace-flickclaw",
+    "stewardclaw": "/home/martin/.openclaw/workspace-stewardclaw",
+    "main": "/home/martin/.openclaw/workspace"
+  }
+}

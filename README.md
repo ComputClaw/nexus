@@ -10,6 +10,7 @@ Nexus ingests data from your Microsoft 365 environment and meeting transcription
 - 📧 **Email** — Inbox and sent items via Microsoft Graph webhooks
 - 📅 **Calendar** — Events (create, update, cancel) via Microsoft Graph webhooks
 - 🎤 **Meetings** — Transcripts, summaries, and action items via Fireflies.ai webhooks
+- 🔗 **Webhooks** — Generic endpoint for external services (put.io, GitHub, etc.)
 
 **Key Features:**
 - **Smart email filtering** — Dual-level whitelist (manual domain entries + auto-populated email addresses from outbound mail, calendar events, and meetings). No newsletter noise.
@@ -18,6 +19,7 @@ Nexus ingests data from your Microsoft 365 environment and meeting transcription
 - **Meeting intelligence** — Summaries and action items in table storage, full transcripts in blob storage. Fractions of a cent per month.
 - **Zero data loss** — Non-whitelisted emails are parked (not dropped). When a sender gets whitelisted, historical emails are automatically promoted.
 - **Sync consumer** — A lightweight Node.js script pulls pending items, writes them as markdown, and deletes them from the backend. The agent processes at its own pace.
+- **Worker** — Local Python process that polls for webhook items, writes to agent inboxes, and spawns isolated agent tasks via OpenClaw. Push model, not polling.
 
 ## Architecture
 
@@ -27,12 +29,15 @@ Microsoft Graph ──webhook──▶ /api/notifications ──▶ email-ingest
 
 Fireflies.ai ──webhook──▶ /api/fireflies ──▶ meeting-ingest queue ──▶ MeetingProcessor
 
+External (put.io, etc.) ──webhook──▶ /api/webhook/{agentId} ──▶ WebhookItems table
+
                                         ┌─────────────────┐
                                         │  Table Storage   │
-All processors write to ───────────────▶│  Items           │◀── GET /api/items (list pending)
-                                        │  PendingEmails   │    DELETE /api/items (after sync)
-                                        │  Whitelist       │    GET /api/items/body (full content)
+All processors write to ───────────────▶│  Items           │◀── GET /api/items (sync consumer)
+                                        │  PendingEmails   │
+                                        │  Whitelist       │
                                         │  Subscriptions   │
+                                        │  WebhookItems    │◀── GET /api/webhook/pending (worker)
                                         └─────────────────┘
                                         ┌─────────────────┐
 Full content stored in ────────────────▶│  Blob Storage    │◀── Agent fetches on demand
@@ -40,7 +45,9 @@ Full content stored in ────────────────▶│  B
                                         │  transcripts/    │
                                         └─────────────────┘
 
-Agent (sync consumer) ──── GET items ──▶ write markdown ──▶ DELETE items ──▶ process locally
+Sync Consumer (email/cal) ─── GET items ──▶ write markdown ──▶ DELETE items ──▶ agent processes
+
+Worker (webhooks) ─── GET pending ──▶ write to inbox ──▶ sessions_spawn ──▶ agent processes
 ```
 
 **Whitelist model:**
@@ -73,8 +80,12 @@ Agent (sync consumer) ──── GET items ──▶ write markdown ──▶ 
 nexus/
 ├── src/Nexus.Ingest/       # Azure Functions app (C# .NET 8)
 ├── scripts/
-│   ├── nexus-sync.js       # Sync consumer script
+│   ├── nexus-sync.js       # Sync consumer script (email/calendar)
 │   └── .nexus-config.example.json
+├── worker/                 # Local worker (webhooks → agents)
+│   ├── SPEC.md             # Worker specification
+│   ├── nexus-worker.py     # Main script (not yet implemented)
+│   └── config.example.json # Configuration template
 ├── docs/
 │   ├── api-reference.md    # Full API documentation
 │   └── sync-consumer.md    # Agent-side integration guide
