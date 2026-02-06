@@ -24,7 +24,7 @@ The `session_upload` job scans all agent session directories, finds completed se
 ## Session File Location
 
 ```
-~/.openclaw/agents/<agentId>/sessions/<SessionId>.jsonl
+<sessionsDir>/<sessionId>.jsonl
 ```
 
 ## Identifying Completed Sessions
@@ -41,7 +41,7 @@ The `session_upload` job scans all agent session directories, finds completed se
 
 Successfully uploaded sessions are moved to a local archive folder:
 ```
-~/.openclaw/agents/<agentId>/sessions/archive/<sessionId>.jsonl
+<sessionsDir>/archive/<sessionId>.jsonl
 ```
 
 This preserves local copies while keeping the active sessions directory clean.
@@ -55,8 +55,8 @@ POST /api/sessions?code={apiKey}
 Content-Type: application/json
 
 {
-  "agentId": "main",
-  "sessionId": "abc123", 
+  "agentId": "<agent-id>",
+  "sessionId": "0fca86c2-49d4-4985-b7ea-2ea80fa8556b", 
   "transcript": "...raw jsonl content as string..."
 }
 ```
@@ -71,7 +71,7 @@ Returns standard `JobResult`:
 {
   "jobId": "session_upload",
   "success": true,
-  "message": "Uploaded 5 sessions across 3 agents",
+  "message": "Uploaded 5 sessions",
   "itemsProcessed": 5,
   "errors": []
 }
