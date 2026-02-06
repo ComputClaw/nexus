@@ -18,18 +18,18 @@ These specifications define what to build, not how to use existing functionality
 | **Authentication** | ✅ Implemented | [📄](authentication.md) |
 | **Email & Calendar** | ✅ Implemented | [📄](email-calendar.md) |
 | **Meetings** | 📝 Spec Complete, Not Implemented | [📄](meetings.md) |
-| **Sessions** | 📝 Spec Complete, Not Implemented | [📄](sessions.md) |
+| **Sessions** | ✅ Implemented | [📄](sessions.md) |
 | **Agent Integration** | ✅ Implemented | [📄](agent-integration.md) |
 | **Administration** | ✅ Implemented | [📄](administration.md) |
 
 ## Implementation Priority
 
 **Ready for implementation:**
-1. **Sessions endpoint** - POST /api/sessions for transcript storage (spec complete)
-2. **Sessions worker** - Python service for session upload (spec complete)
-3. **Meetings integration** - Fireflies.ai webhook processing (spec complete, needs API key)
+1. **Sessions worker** - Python service for session upload (spec complete)
+2. **Meetings integration** - Fireflies.ai webhook processing (spec complete, needs API key)
 
 **Completed implementations:**
+- Sessions endpoint (POST /api/sessions)
 - Email/calendar ingestion (Microsoft Graph)
 - Items API (agent consumption)
 - Authentication system

@@ -35,7 +35,7 @@ External Services ──webhook──▶ Azure Functions ──▶ Table Storage
 ## Status
 
 ✅ **Email/Calendar** — Live  
-📝 **Sessions** — Designed  
+✅ **Sessions** — Live
 📝 **Webhooks** — Designed  
 ⬜ **Meetings** — Pending API key
 
