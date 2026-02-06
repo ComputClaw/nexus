@@ -1,45 +1,86 @@
 # Nexus Documentation
 
-Data ingestion service for OpenClaw agents.
+User guide for the Nexus data ingestion service.
 
-## Functional Areas
+## What is Nexus?
 
-| Area | Purpose | Documentation |
-|------|---------|---------------|
-| **Authentication** | Security model and API keys | [📄](authentication.md) |
-| **Email & Calendar** | Microsoft Graph integration | [📄](email-calendar.md) |
-| **Meetings** | Fireflies.ai transcripts | [📄](meetings.md) |
-| **Sessions** | OpenClaw session storage | [📄](sessions.md) |  
-| **Agent Integration** | How agents consume data | [📄](agent-integration.md) |
-| **Administration** | Management and monitoring | [📄](administration.md) |
+Nexus collects data from external services and makes it available to OpenClaw agents through simple REST APIs.
 
-## Quick Start
+## Getting Started
 
-**For Agents:**
-1. Configure credentials in sync script
-2. Run `node scripts/nexus-sync.js --with-body`
-3. Process files from `data/inbox/`
+### For Agents
 
-**For Administrators:**
-1. Set up Azure Function App with required settings
-2. Bootstrap Graph subscriptions
-3. Configure webhooks for external services
+1. **Get credentials** from your administrator:
+   - Function key (Azure)
+   - Application API key (Nexus)
 
-## Data Flow
+2. **Set up sync script:**
+   ```bash
+   cp scripts/.nexus-config.example.json scripts/.nexus-config.json
+   # Edit with your credentials and URLs
+   ```
 
+3. **Sync data:**
+   ```bash
+   node scripts/nexus-sync.js --with-body
+   ```
+
+### For Administrators
+
+See [Setup Guide](setup.md) for deployment and configuration.
+
+## What Data is Available?
+
+| Type | Source | Description |
+|------|--------|-------------|
+| **Email** | Microsoft Graph | Inbox and sent messages |
+| **Calendar** | Microsoft Graph | Meeting invites and events |
+| **Meetings** | Fireflies.ai | Transcripts and summaries |
+| **Sessions** | OpenClaw | Agent session transcripts |
+
+## How to Access Data
+
+### Sync Script (Recommended)
+
+Automated sync that downloads data as markdown files:
+
+```bash
+# Sync all data types
+node nexus-sync.js --with-body
+
+# Sync only emails
+node nexus-sync.js --type email
+
+# Preview without downloading
+node nexus-sync.js --dry-run
 ```
-External Sources → Nexus Functions → Table/Blob Storage → Agent APIs → Local Processing
+
+### REST API (Advanced)
+
+Direct API access for custom integrations:
+
+```bash
+# List available items
+curl "https://nexus.../api/items?code=<key>" -H "X-Api-Key: <key>"
+
+# Get full content
+curl "https://nexus.../api/items/body?type=email&id=<id>&code=<key>" -H "X-Api-Key: <key>"
+
+# Delete after processing
+curl -X DELETE "https://nexus.../api/items?type=email&id=<id>&code=<key>" -H "X-Api-Key: <key>"
 ```
 
-**Sources:** Microsoft Graph, Fireflies.ai, OpenClaw sessions, generic webhooks
-**Storage:** Azure Table Storage (metadata) + Blob Storage (full content)  
-**Consumption:** REST APIs + sync scripts + local worker
+## Documentation
 
-## Status
+| Topic | Description |
+|-------|-------------|
+| [Setup Guide](setup.md) | Deployment and configuration |
+| [API Reference](api-reference.md) | Complete API documentation |
+| [Sync Script](sync-script.md) | Using the automated sync |
+| [Troubleshooting](troubleshooting.md) | Common issues and solutions |
 
-| Integration | Status | Notes |
-|-------------|--------|-------|
-| Email/Calendar | ✅ Live | Microsoft Graph webhooks |
-| Meetings | ⬜ Pending | Requires Fireflies API key |
-| Sessions | 📝 Designed | Endpoint + worker spec complete |
-| Webhooks | 📝 Designed | Generic webhook receiver |
+## Support
+
+- Check [Troubleshooting](troubleshooting.md) for common issues
+- Review logs in Azure Portal → Function App → Monitor
+- Contact your administrator for configuration issues
