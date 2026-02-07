@@ -17,16 +17,14 @@ Multi-job worker running on the OpenClaw host. Jobs are configured independently
 ```
 ComputClaw/nexus/
 └── src/
-    ├── worker/
-    │   ├── __init__.py
-    │   ├── __main__.py        # Entry point, CLI
-    │   ├── config.py          # Config loading
-    │   ├── scheduler.py       # Main loop
-    │   └── config.example.json
-    └── jobs/
+    └── worker/
         ├── __init__.py
-        ├── base.py            # Job ABC + JobResult
-        └── session_upload.py
+        ├── __main__.py          # Entry point, CLI
+        ├── config.py            # Config loading
+        ├── scheduler.py         # Main loop
+        ├── job.py               # Job ABC + JobResult
+        ├── session_upload.py    # SessionUploadJob
+        └── config.example.json
 ```
 
 ## Configuration

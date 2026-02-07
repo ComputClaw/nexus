@@ -43,8 +43,7 @@ External Services ──webhook──▶ Azure Functions ──▶ Blob + Table 
 ```
 nexus/
 ├── src/function-app/      # Azure Functions (C# .NET 8)
-├── src/worker/            # Worker core (Python)
-├── src/jobs/              # Job implementations (Python)
+├── src/worker/            # Worker + job implementations (Python)
 ├── specs/                 # Development specifications
 └── README.md
 ```

@@ -29,7 +29,7 @@ specs/
 | **session_upload job** | ✅ Implemented | [📄](job-session-upload.md) |
 | **webhook_pull job** | ⬜ Not implemented | [📄](job-webhook-pull.md) |
 
-Worker core is in `src/worker/` (entry point, config, scheduler). Jobs are in `src/jobs/` (base class, session_upload). Needs end-to-end testing and deployment.
+Worker core and jobs are in `src/worker/` (entry point, config, scheduler, job implementations). Needs end-to-end testing and deployment.
 
 ## Implementation Priority
 

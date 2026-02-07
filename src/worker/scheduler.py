@@ -4,8 +4,9 @@ import logging
 import time
 from typing import Any
 
-from config import Config, JobConfig
-from jobs import Job, JobResult, SessionUploadJob
+from worker.config import Config, JobConfig
+from worker.job import Job, JobResult
+from worker.session_upload import SessionUploadJob
 
 log = logging.getLogger(__name__)
 
