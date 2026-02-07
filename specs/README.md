@@ -6,45 +6,38 @@ Technical specifications for developing the Nexus data ingestion service.
 
 ```
 specs/
-├── server/              # Cloud service (Azure Functions)
-│   ├── sessions.md      # Session transcript storage
-│   └── administration.md
-├── client/              # Worker and jobs (Python)
-│   ├── worker.md        # Worker architecture
-│   └── jobs/
-│       ├── session-upload.md
-│       └── webhook-pull.md
-└── outstanding.md       # Open items tracking
+├── function-app-sessions.md        # Session transcript storage
+├── function-app-administration.md   # Admin, subscriptions, monitoring
+├── worker.md                        # Worker architecture
+├── job-session-upload.md            # Upload session transcripts job
+├── job-webhook-pull.md              # Pull webhook items job
+└── outstanding.md                   # Open items tracking
 ```
 
-## Server (Cloud Service)
-
-Azure Functions that receive and store data.
+## Function App (Azure Functions)
 
 | Area | Status | Specification |
 |------|--------|---------------|
-| **Sessions** | ✅ Implemented | [📄](server/sessions.md) |
-| **Administration** | ✅ Implemented | [📄](server/administration.md) |
+| **Sessions** | ✅ Implemented | [📄](function-app-sessions.md) |
+| **Administration** | ✅ Implemented | [📄](function-app-administration.md) |
 
-## Client (Worker)
-
-Python service that syncs data between OpenClaw host and Nexus.
+## Worker (Python)
 
 | Area | Status | Specification |
 |------|--------|---------------|
-| **Worker** | 📝 Spec Complete | [📄](client/worker.md) |
-| **session_upload job** | 📝 Spec Complete | [📄](client/jobs/session-upload.md) |
-| **webhook_pull job** | 📝 Spec Complete | [📄](client/jobs/webhook-pull.md) |
+| **Worker core** | ✅ Implemented | [📄](worker.md) |
+| **session_upload job** | ✅ Implemented | [📄](job-session-upload.md) |
+| **webhook_pull job** | ⬜ Not implemented | [📄](job-webhook-pull.md) |
+
+Worker core is in `src/worker/` (entry point, config, scheduler). Jobs are in `src/jobs/` (base class, session_upload). Needs end-to-end testing and deployment.
 
 ## Implementation Priority
 
 **Immediate:**
-1. Worker core implementation
-2. session_upload job
-3. Deploy and test end-to-end
+1. Deploy worker and test end-to-end
 
 **Next:**
-4. Webhook ingestion endpoint (server)
-5. webhook_pull job (client)
+2. Webhook ingestion endpoint (function app)
+3. webhook_pull job
 
 See [outstanding.md](outstanding.md) for detailed tracking.

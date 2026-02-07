@@ -29,24 +29,22 @@ External Services ──webhook──▶ Azure Functions ──▶ Table Storage
 
 ## Status
 
-✅ **Sessions** — Live  
-📝 **Webhooks** — Designed  
-📝 **Worker** — Designed
+✅ **Sessions** — Live
+✅ **Worker** — Implemented (pending deployment)
+📝 **Webhooks** — Designed
 
 ## Documentation
 
-- **[docs/](docs/)** — User documentation
 - **[specs/](specs/)** — Development specifications
-- **[worker/](worker/)** — Worker specifications
 
 ## Project Structure
 
 ```
 nexus/
-├── src/Nexus.Ingest/       # Azure Functions (C# .NET 8)
-├── worker/                 # Local worker (Python)
-├── docs/                   # User documentation
-├── specs/                  # Development specifications
+├── src/function-app/      # Azure Functions (C# .NET 8)
+├── src/worker/            # Worker core (Python)
+├── src/jobs/              # Job implementations (Python)
+├── specs/                 # Development specifications
 └── README.md
 ```
 
