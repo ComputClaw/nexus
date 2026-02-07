@@ -85,7 +85,7 @@ Agents don't call the API — worker writes to their local inbox.
 
 Instead of agents polling via cron, a local worker pushes to agents when new data arrives.
 
-See [worker.md](../worker.md) for the worker design.
+See [worker.md](worker.md) for the worker design.
 
 **Summary:**
 1. Worker polls Nexus for pending items

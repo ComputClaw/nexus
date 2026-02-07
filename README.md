@@ -13,18 +13,19 @@ Nexus ingests data from external services and stores it for agent consumption.
 ## Architecture
 
 ```
-External Services ──webhook──▶ Azure Functions ──▶ Table Storage ──▶ Agents
+External Services ──webhook──▶ Azure Functions ──▶ Blob + Table Storage ──▶ Agents
 ```
 
 **Components:**
 - **HTTP endpoints** — Receive webhooks and data
-- **Table Storage** — Structured data storage
+- **Blob Storage** — Session transcripts and large content
+- **Table Storage** — Structured data and metadata
 - **Local worker** — Syncs data between host and Nexus
 
 ## Tech Stack
 
 - **Runtime:** C# .NET 8, Azure Functions v4
-- **Storage:** Azure Table Storage
+- **Storage:** Azure Blob Storage + Table Storage
 - **Worker:** Python (local process on OpenClaw host)
 
 ## Status

@@ -10,27 +10,28 @@ Tracking open items, decisions needed, and gaps across Nexus components.
 
 | # | Item | Notes | Status |
 |---|------|-------|--------|
-| W1 | Core worker implementation | Python scheduler, job framework | ⬜ |
-| W2 | session_upload job | Upload completed sessions | ⬜ |
+| W1 | Core worker implementation | Python scheduler, job framework | ✅ |
+| W2 | session_upload job | Upload completed sessions | ✅ |
 | W3 | webhook_pull job | Deliver webhook items | ⬜ |
 | W4 | FlickClaw session path | Docker-sandboxed — verify host can access | ⬜ |
 | W5 | Backfill historical sessions | Upload existing sessions on first run | ⬜ |
+| W6 | Deploy worker | Deploy to OpenClaw host, test end-to-end | ⬜ |
 
 ### Error Handling
 
 | # | Item | Notes | Status |
 |---|------|-------|--------|
-| W6 | Upload failure retry | Exponential backoff? Max retries? | ⬜ |
-| W7 | Idempotency | Track uploaded session IDs | ⬜ |
-| W8 | Large files | Streaming for long sessions | ⬜ |
+| W7 | Upload failure retry | Exponential backoff? Max retries? | ⬜ |
+| W8 | Idempotency | 409 treated as success, archives file | ✅ |
+| W9 | Large files | Worker pre-checks file size (10MB limit) | ✅ |
 
 ### Operational
 
 | # | Item | Notes | Status |
 |---|------|-------|--------|
-| W9 | Logging | Stdout to systemd journal | ⬜ |
-| W10 | Health check | How to know worker is running | ⬜ |
-| W11 | Alerting | Notify on repeated failures | ⬜ |
+| W10 | Logging | Stdout to systemd journal | ⬜ |
+| W11 | Health check | How to know worker is running | ⬜ |
+| W12 | Alerting | Notify on repeated failures | ⬜ |
 
 ---
 
@@ -39,10 +40,19 @@ Tracking open items, decisions needed, and gaps across Nexus components.
 | # | Item | Notes | Status |
 |---|------|-------|--------|
 | S1 | Endpoint implementation | POST /api/sessions | ✅ |
-| S2 | Storage model | Table with date partitioning | ✅ |
+| S2 | Storage model | Blob Storage (sessions/inbox/{agentId}/{sessionId}.jsonl) | ✅ |
 | S3 | Validation | Required fields, UUID format | ✅ |
-| S4 | Size limit | 1MB max transcript | ✅ |
-| S5 | Deduplication | 409 Conflict on duplicate | ✅ |
+| S4 | Size limit | 10MB max transcript | ✅ |
+| S5 | Deduplication | 409 Conflict on duplicate (overwrite: false) | ✅ |
+
+---
+
+## Deploy
+
+| # | Item | Notes | Status |
+|---|------|-------|--------|
+| D1 | Fix deploy workflow | Path changed from src/Nexus.Ingest to src/function-app | ⬜ |
+| D2 | Deploy worker to host | systemd service on OpenClaw host | ⬜ |
 
 ---
 
@@ -50,7 +60,7 @@ Tracking open items, decisions needed, and gaps across Nexus components.
 
 | # | Item | Notes | Status |
 |---|------|-------|--------|
-| H1 | Webhook endpoint | POST /webhook/ingest | ⬜ |
+| H1 | Webhook endpoint | POST /api/webhook/{agentId} | ⬜ |
 | H2 | WebhookItems table | Store pending items | ⬜ |
 | H3 | Worker pull job | Deliver to agent inboxes | ⬜ |
 | H4 | put.io integration | Register webhook URL | ⬜ |
@@ -70,18 +80,17 @@ Tracking open items, decisions needed, and gaps across Nexus components.
 ## Priority Order
 
 **Immediate:**
-1. Worker core implementation
-2. session_upload job implementation
-3. Deploy and test end-to-end
+1. Fix deploy workflow (D1)
+2. Deploy worker and test end-to-end (W6, D2)
 
 **Next:**
-4. Webhook ingestion endpoint
-5. webhook_pull job implementation
-6. put.io integration
+3. Webhook ingestion endpoint (H1, H2)
+4. webhook_pull job (W3, H3)
+5. put.io integration (H4)
 
 **Later:**
-7. Analytics endpoints
+6. Analytics endpoints
 
 ---
 
-*Last updated: 2026-02-06*
+*Last updated: 2026-02-07*

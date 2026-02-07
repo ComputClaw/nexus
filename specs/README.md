@@ -34,10 +34,11 @@ Worker core is in `src/worker/` (entry point, config, scheduler). Jobs are in `s
 ## Implementation Priority
 
 **Immediate:**
-1. Deploy worker and test end-to-end
+1. Fix deploy workflow (path changed to `src/function-app`)
+2. Deploy worker and test end-to-end
 
 **Next:**
-2. Webhook ingestion endpoint (function app)
-3. webhook_pull job
+3. Webhook ingestion endpoint (function app)
+4. webhook_pull job
 
 See [outstanding.md](outstanding.md) for detailed tracking.

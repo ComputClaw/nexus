@@ -4,7 +4,7 @@ OpenClaw session transcript storage for analytics and archival.
 
 ## Overview
 
-Nexus stores raw session transcripts from OpenClaw agents for future analytics, cost tracking, and debugging. No processing is done during ingestion — transcripts are stored as-is.
+Nexus stores raw session transcripts from OpenClaw agents for future analytics, cost tracking, and debugging. No processing is done during ingestion — transcripts are stored as-is in Blob Storage.
 
 ## Status
 
@@ -40,6 +40,8 @@ Content-Type: application/json
 {
   "status": "ok",
   "sessionId": "0fca86c2-49d4-4985-b7ea-2ea80fa8556b",
+  "path": "inbox/main/0fca86c2-49d4-4985-b7ea-2ea80fa8556b.jsonl",
+  "bytes": 245760,
   "stored": "2026-02-06T15:48:00Z"
 }
 ```
@@ -68,54 +70,53 @@ Content-Type: application/json
 **Payload Too Large (413):**
 ```json
 {
-  "error": "Transcript exceeds 1 MB limit"
+  "error": "Transcript exceeds 10 MB limit"
 }
 ```
 
 ## Storage
 
-### Sessions Table
+### Blob Storage
 
-| Field | Type | Description |
-|-------|------|-------------|
-| **PartitionKey** | string | `yyyy-MM-dd` (date received, for cleanup) |
-| **RowKey** | string | `sessionId` (36-character UUID) |
-| **Timestamp** | datetime | When received |
-| **AgentId** | string | Agent identifier |
-| **RawData** | string | Complete JSONL transcript |
+Transcripts are stored as blobs in the `sessions` container:
 
-**Example entity:**
-```json
-{
-  "PartitionKey": "2026-02-06",
-  "RowKey": "0fca86c2-49d4-4985-b7ea-2ea80fa8556b",
-  "Timestamp": "2026-02-06T15:48:23.145Z",
-  "AgentId": "main",
-  "RawData": "{\"type\":\"session\",\"version\":1,...}\n{\"type\":\"message\",...}\n..."
-}
+```
+sessions/inbox/{agentId}/{sessionId}.jsonl
+```
+
+**Example:**
+```
+sessions/inbox/main/0fca86c2-49d4-4985-b7ea-2ea80fa8556b.jsonl
 ```
 
 ### Storage Constraints
 
-- **Max entity size:** 1MB (Table Storage limit)
-- **Large sessions:** Rejected with 413 Payload Too Large
-- **Deduplication:** 409 Conflict if sessionId already exists
-- **Cleanup:** Partition by date enables easy deletion of old data
+- **Max transcript size:** 10MB
+- **Deduplication:** Upload with `overwrite: false` — returns 409 if blob already exists
+- **Container:** Auto-created on first write via `CreateIfNotExistsAsync`
+
+### Why Blob Storage (not Table Storage)
+
+- **No 1MB entity limit** — session transcripts can be large
+- **Simpler access patterns** — direct blob path lookup by agent + session ID
+- **Cost effective** — blob storage is cheaper for large text data
 
 ## Processing Logic
 
-1. **Validate request** — check required fields present
-2. **Validate sessionId** — must be 36-character UUID format
-3. **Validate size** — transcript must be ≤ 1MB
-4. **Check duplicates** — reject if RowKey exists
-5. **Store raw data** — insert with current date as PartitionKey
-6. **Return confirmation** — sessionId and timestamp
+1. **Fast reject** — check Content-Length header for obviously oversized requests
+2. **Deserialize** — parse JSON body
+3. **Validate request** — check required fields present
+4. **Validate sessionId** — must be 36-character UUID format
+5. **Validate size** — transcript must be ≤ 10MB (UTF-8 byte count)
+6. **Ensure container** — create `sessions` container if needed
+7. **Upload blob** — `inbox/{agentId}/{sessionId}.jsonl` with `overwrite: false`
+8. **Return confirmation** — sessionId, path, bytes, and timestamp
 
 **No parsing or analysis** — store raw transcript as-is for later processing.
 
 ## Worker Integration
 
-The Nexus worker uploads completed sessions (see [worker specs](../worker/)):
+The Nexus worker uploads completed sessions (see [worker spec](worker.md)):
 
 1. **Scan agents** — Check session directories for all configured agents
 2. **Find completed** — Sessions not in `sessions.json` are complete
@@ -139,13 +140,9 @@ Raw transcript storage enables:
 
 **Retention:** TBD (90 days? 1 year?)
 
-**Cleanup:** Partition by date enables batch deletion:
-```
-Delete all entities where PartitionKey < '2025-11-01'
-```
+**Cleanup:** Blob prefix enables easy deletion by agent or date.
 
 **Access patterns:**
-- Session lookup by ID (RowKey)
-- Date range queries (PartitionKey)
-- Analytics processing (scan all or date range)
-- AgentId filtering (requires scanning RawData or using AgentId field)
+- Session lookup by agent + session ID (direct blob path)
+- Agent listing (prefix `inbox/{agentId}/`)
+- Full scan for analytics processing
