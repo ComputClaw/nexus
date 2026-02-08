@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{7FBB9AB3-BDCC-4328-B7BA-CF8DBC36AA30}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.Ingest", "src\Nexus.Ingest\Nexus.Ingest.csproj", "{1B562A96-2889-424C-96BD-4FA568EA3A5E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.Ingest", "src\Nexus.Ingest.csproj", "{1B562A96-2889-424C-96BD-4FA568EA3A5E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

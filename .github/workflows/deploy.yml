@@ -7,7 +7,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_NAME: nexusassistant
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: src/function-app
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: src
   DOTNET_VERSION: '8.0.x'
 
 jobs:
