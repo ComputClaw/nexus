@@ -151,7 +151,7 @@ public sealed class WebhookProcessorFunction
         var payload = new
         {
             notification = notification,
-            event = new
+            calendarEvent = new
             {
                 id = calendarEvent.Id,
                 subject = calendarEvent.Subject,
