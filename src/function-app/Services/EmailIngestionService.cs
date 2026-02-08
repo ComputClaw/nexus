@@ -34,14 +34,14 @@ public sealed class EmailIngestionService
         _logger = logger;
     }
 
-    public async Task Process(Message message, string changeType, CancellationToken ct)
+    public async Task Process(Message message, string changeType, string agentName, CancellationToken ct)
     {
         var direction = DetermineDirection(message);
         var senderDomain = ExtractDomain(message.From?.EmailAddress?.Address);
 
         _logger.LogInformation(
-            "Processing {Direction} email: {Subject} from {From}",
-            direction, message.Subject, message.From?.EmailAddress?.Address);
+            "Processing {Direction} email for {Agent}: {Subject} from {From}",
+            direction, agentName, message.Subject, message.From?.EmailAddress?.Address);
 
         // Outbound: auto-whitelist TO + CC recipients by full email address (use BCC to avoid; not domain)
         if (direction == "outbound")
@@ -62,8 +62,8 @@ public sealed class EmailIngestionService
             }
         }
 
-        // Build table entity
-        var entity = await MapEmailToEntity(message, direction, ct);
+        // Build table entity with agent routing info
+        var entity = await MapEmailToEntity(message, direction, agentName, ct);
 
         // Inbound: check whitelist (full email OR domain)
         var senderEmail = (message.From?.EmailAddress?.Address ?? "").ToLowerInvariant();
@@ -101,7 +101,7 @@ public sealed class EmailIngestionService
     }
 
     private async Task<TableEntity> MapEmailToEntity(
-        Message message, string direction, CancellationToken ct)
+        Message message, string direction, string agentName, CancellationToken ct)
     {
         var receivedAt = message.ReceivedDateTime ?? message.SentDateTime ?? DateTimeOffset.UtcNow;
         var sourceId = SanitizeRowKey(message.Id ?? "unknown");
@@ -119,6 +119,10 @@ public sealed class EmailIngestionService
 
         return new TableEntity("email", sourceId)
         {
+            // Agent routing info
+            { "AgentName", agentName },
+            { "SourceType", "graph-email" },
+            // Standard fields
             { "FileName", fileName },
             { "Action", "created" },
             { "Source", "graph-mail" },

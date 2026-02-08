@@ -28,17 +28,17 @@ public sealed class MeetingIngestionService
         _logger = logger;
     }
 
-    public async Task Process(FirefliesTranscript transcript, CancellationToken ct)
+    public async Task Process(FirefliesTranscript transcript, string agentName, CancellationToken ct)
     {
         // 1. Store full transcript in Blob Storage
         var blobPath = await _blobService.StoreTranscript(transcript, ct);
 
-        // 2. Build Items entity
-        var entity = MapMeetingToEntity(transcript, blobPath);
+        // 2. Build Items entity with agent routing info
+        var entity = MapMeetingToEntity(transcript, blobPath, agentName);
         await _itemsTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
 
-        _logger.LogInformation("Stored meeting: {Title} (transcript at {BlobPath})",
-            transcript.Title, blobPath);
+        _logger.LogInformation("Stored meeting for {Agent}: {Title} (transcript at {BlobPath})",
+            agentName, transcript.Title, blobPath);
 
         // 3. Auto-whitelist participant email addresses (not domains)
         var participantEmails = (transcript.MeetingAttendees ?? [])
@@ -58,13 +58,17 @@ public sealed class MeetingIngestionService
         }
     }
 
-    private static TableEntity MapMeetingToEntity(FirefliesTranscript transcript, string blobPath)
+    private static TableEntity MapMeetingToEntity(FirefliesTranscript transcript, string blobPath, string agentName)
     {
         var date = DateTimeOffset.TryParse(transcript.DateString, out var parsed)
             ? parsed : DateTimeOffset.UtcNow;
 
         return new TableEntity("meeting", transcript.Id)
         {
+            // Agent routing info
+            { "AgentName", agentName },
+            { "SourceType", "fireflies-meeting" },
+            // Standard fields
             { "FileName", FileNameBuilder.ForMeeting(transcript) },
             { "Action", "created" },
             { "Source", "fireflies" },

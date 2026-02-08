@@ -26,7 +26,7 @@ public sealed class CalendarIngestionService
         _logger = logger;
     }
 
-    public async Task Process(Event calendarEvent, string changeType, CancellationToken ct)
+    public async Task Process(Event calendarEvent, string changeType, string agentName, CancellationToken ct)
     {
         var action = changeType switch
         {
@@ -36,12 +36,12 @@ public sealed class CalendarIngestionService
             _ => "created"
         };
 
-        var entity = MapCalendarEventToEntity(calendarEvent, action);
+        var entity = MapCalendarEventToEntity(calendarEvent, action, agentName);
         await _itemsTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
 
         _logger.LogInformation(
-            "Stored calendar event ({Action}): {Subject} at {Start}",
-            action, calendarEvent.Subject, calendarEvent.Start?.DateTime);
+            "Stored calendar event for {Agent} ({Action}): {Subject} at {Start}",
+            agentName, action, calendarEvent.Subject, calendarEvent.Start?.DateTime);
 
         // Auto-whitelist attendee email addresses (not domains)
         var attendeeEmails = (calendarEvent.Attendees ?? [])
@@ -75,7 +75,7 @@ public sealed class CalendarIngestionService
         _logger.LogInformation("Recorded calendar event cancellation: {Id}", resourceId);
     }
 
-    private static TableEntity MapCalendarEventToEntity(Event evt, string action)
+    private static TableEntity MapCalendarEventToEntity(Event evt, string action, string agentName)
     {
         var startTime = evt.Start?.DateTime != null
             ? DateTimeOffset.Parse(evt.Start.DateTime) : (DateTimeOffset?)null;
@@ -85,6 +85,10 @@ public sealed class CalendarIngestionService
 
         return new TableEntity("calendar", sourceId)
         {
+            // Agent routing info
+            { "AgentName", agentName },
+            { "SourceType", "graph-calendar" },
+            // Standard fields
             { "FileName", FileNameBuilder.ForCalendarEvent(evt) },
             { "Action", action },
             { "Source", "graph-calendar" },
