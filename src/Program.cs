@@ -48,13 +48,16 @@ var host = new HostBuilder()
         }
 
         // Application services
-        services.AddSingleton<WhitelistService>();
         services.AddSingleton<BlobStorageService>();
         services.AddSingleton<GraphService>();
+        services.AddSingleton<SimpleIngestionService>();
+        services.AddSingleton<SubscriptionService>();
+        
+        // Legacy services (TODO: Remove after migration)
+        services.AddSingleton<WhitelistService>();
         services.AddSingleton<EmailIngestionService>();
         services.AddSingleton<CalendarIngestionService>();
         services.AddSingleton<MeetingIngestionService>();
-        services.AddSingleton<SubscriptionService>();
     })
     .Build();
 

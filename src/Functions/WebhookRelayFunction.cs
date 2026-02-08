@@ -20,6 +20,7 @@ public sealed class WebhookRelayFunction
     private readonly QueueClientFactory _queues;
     private readonly string _graphClientState;
     private readonly string? _firefliesWebhookSecret;
+    private readonly string? _githubWebhookSecret;
     private readonly ILogger<WebhookRelayFunction> _logger;
 
     // Valid agent names
@@ -34,7 +35,8 @@ public sealed class WebhookRelayFunction
         {
             ["graph"] = new(StringComparer.OrdinalIgnoreCase) { "email", "calendar" },
             ["fireflies"] = new(StringComparer.OrdinalIgnoreCase) { "meeting" },
-            ["putio"] = new(StringComparer.OrdinalIgnoreCase) { "download" }
+            ["putio"] = new(StringComparer.OrdinalIgnoreCase) { "download" },
+            ["github"] = new(StringComparer.OrdinalIgnoreCase) { "release" }
         };
 
     public WebhookRelayFunction(
@@ -45,6 +47,7 @@ public sealed class WebhookRelayFunction
         _queues = queues;
         _graphClientState = config["Graph:ClientState"] ?? "";
         _firefliesWebhookSecret = config["Fireflies:WebhookSecret"];
+        _githubWebhookSecret = config["GitHub:WebhookSecret"];
         _logger = logger;
     }
 
@@ -106,6 +109,13 @@ public sealed class WebhookRelayFunction
             else if (source.Equals("fireflies", StringComparison.OrdinalIgnoreCase))
             {
                 if (!await ProcessFirefliesWebhook(req, body, agentName, source, type, ct))
+                {
+                    return req.CreateResponse(HttpStatusCode.Unauthorized);
+                }
+            }
+            else if (source.Equals("github", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!await ProcessGitHubWebhook(req, body, agentName, source, type, ct))
                 {
                     return req.CreateResponse(HttpStatusCode.Unauthorized);
                 }
@@ -229,5 +239,52 @@ public sealed class WebhookRelayFunction
         await _queues.WebhookQueue.SendMessageAsync(queueMsg, ct);
 
         _logger.LogInformation("Enqueued {Source}/{Type} for {Agent}", source, type, agentName);
+    }
+
+    private async Task<bool> ProcessGitHubWebhook(
+        HttpRequestData req, string body,
+        string agentName, string source, string type,
+        CancellationToken ct)
+    {
+        // Validate GitHub signature
+        var signature = req.Headers.TryGetValues("x-hub-signature-256", out var values)
+            ? values.FirstOrDefault()?.Replace("sha256=", "") : null;
+
+        if (!string.IsNullOrEmpty(_githubWebhookSecret) &&
+            !SignatureValidator.Verify(body, signature, _githubWebhookSecret))
+        {
+            _logger.LogWarning("Invalid GitHub webhook signature");
+            return false;
+        }
+
+        // Parse payload and filter by action
+        var payload = JsonSerializer.Deserialize<JsonElement>(body);
+        var action = payload.TryGetProperty("action", out var actionProp) 
+            ? actionProp.GetString() : null;
+
+        // Only process published releases
+        if (action != "published")
+        {
+            _logger.LogInformation("Ignoring GitHub {Action} action for {Agent}", action, agentName);
+            return true; // Success, but filtered out
+        }
+
+        // Enqueue for processing
+        var webhookMessage = new WebhookMessage
+        {
+            AgentName = agentName,
+            Source = source,
+            Type = type,
+            WebhookUrl = req.Url.ToString(),
+            NotificationData = payload.Clone(),
+            ReceivedAt = DateTime.UtcNow
+        };
+
+        var queueMsg = JsonSerializer.Serialize(webhookMessage);
+        await _queues.WebhookQueue.SendMessageAsync(queueMsg, ct);
+
+        _logger.LogInformation("Enqueued GitHub {Type} for {Agent}: {Action}", 
+            type, agentName, action);
+        return true;
     }
 }

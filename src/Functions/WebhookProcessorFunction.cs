@@ -9,33 +9,24 @@ namespace Nexus.Ingest.Functions;
 
 /// <summary>
 /// Unified queue processor for all webhook types.
-/// Routes to appropriate ingestion service based on source/type.
+/// Uses simplified ingestion with unified Items table schema.
 /// </summary>
 public sealed class WebhookProcessorFunction
 {
     private readonly GraphService _graphService;
     private readonly FirefliesService? _firefliesService;
-    private readonly EmailIngestionService _emailService;
-    private readonly CalendarIngestionService _calendarService;
-    private readonly MeetingIngestionService _meetingService;
-    private readonly TableClient _itemsTable;
+    private readonly SimpleIngestionService _ingestionService;
     private readonly ILogger<WebhookProcessorFunction> _logger;
 
     public WebhookProcessorFunction(
         GraphService graphService,
-        EmailIngestionService emailService,
-        CalendarIngestionService calendarService,
-        MeetingIngestionService meetingService,
-        TableServiceClient tableService,
+        SimpleIngestionService ingestionService,
         ILogger<WebhookProcessorFunction> logger,
         FirefliesService? firefliesService = null)
     {
         _graphService = graphService;
         _firefliesService = firefliesService;
-        _emailService = emailService;
-        _calendarService = calendarService;
-        _meetingService = meetingService;
-        _itemsTable = tableService.GetTableClient("Items");
+        _ingestionService = ingestionService;
         _logger = logger;
     }
 
@@ -63,6 +54,7 @@ public sealed class WebhookProcessorFunction
                 ("graph", "email") => await ProcessGraphEmail(webhook, ct),
                 ("graph", "calendar") => await ProcessGraphCalendar(webhook, ct),
                 ("fireflies", "meeting") => await ProcessFirefliesMeeting(webhook, ct),
+                ("github", "release") => await ProcessGitHubRelease(webhook, ct),
                 ("putio", "download") => await ProcessGenericWebhook(webhook, ct),
                 _ => throw new NotSupportedException($"Unknown source/type: {webhook.Source}/{webhook.Type}")
             };
@@ -102,8 +94,36 @@ public sealed class WebhookProcessorFunction
             return false;
         }
 
-        // Process with agent info (stores in Items table)
-        await _emailService.Process(message, notification.ChangeType, webhook.AgentName, ct);
+        // Create simplified payload with notification + message data
+        var payload = new
+        {
+            notification = notification,
+            message = new
+            {
+                id = message.Id,
+                subject = message.Subject,
+                from = message.From?.EmailAddress?.Address,
+                to = message.ToRecipients?.Select(r => r.EmailAddress?.Address),
+                cc = message.CcRecipients?.Select(r => r.EmailAddress?.Address),
+                conversationId = message.ConversationId,
+                receivedDateTime = message.ReceivedDateTime,
+                sentDateTime = message.SentDateTime,
+                bodyPreview = message.BodyPreview,
+                hasAttachments = message.HasAttachments
+            }
+        };
+
+        // Extract body content for blob storage
+        var bodyContent = message.Body?.Content;
+        var receivedAt = message.ReceivedDateTime ?? message.SentDateTime ?? DateTimeOffset.UtcNow;
+
+        await _ingestionService.StoreEmail(
+            payload,
+            webhook.AgentName,
+            bodyContent,
+            null, // TODO: Handle attachments
+            receivedAt,
+            ct);
 
         return true;
     }
@@ -127,8 +147,41 @@ public sealed class WebhookProcessorFunction
             return false;
         }
 
-        // Process with agent info (stores in Items table)
-        await _calendarService.Process(calendarEvent, notification.ChangeType, webhook.AgentName, ct);
+        // Create simplified payload
+        var payload = new
+        {
+            notification = notification,
+            event = new
+            {
+                id = calendarEvent.Id,
+                subject = calendarEvent.Subject,
+                start = calendarEvent.Start,
+                end = calendarEvent.End,
+                location = calendarEvent.Location?.DisplayName,
+                organizer = calendarEvent.Organizer?.EmailAddress?.Address,
+                attendees = calendarEvent.Attendees?.Select(a => new
+                {
+                    email = a.EmailAddress?.Address,
+                    name = a.EmailAddress?.Name,
+                    status = a.Status?.Response?.ToString()
+                }),
+                bodyPreview = calendarEvent.BodyPreview,
+                isAllDay = calendarEvent.IsAllDay,
+                changeKey = calendarEvent.ChangeKey,
+                createdDateTime = calendarEvent.CreatedDateTime,
+                lastModifiedDateTime = calendarEvent.LastModifiedDateTime
+            }
+        };
+
+        var receivedAt = calendarEvent.LastModifiedDateTime ?? DateTimeOffset.UtcNow;
+
+        await _ingestionService.StoreItem(
+            payload,
+            "graph-calendar",
+            webhook.AgentName,
+            receivedAt,
+            null,
+            ct);
 
         return true;
     }
@@ -158,33 +211,94 @@ public sealed class WebhookProcessorFunction
             return false;
         }
 
-        // Process with agent info
-        await _meetingService.Process(meeting, webhook.AgentName, ct);
+        // Build transcript text for blob storage
+        var transcriptText = string.Join("\n", 
+            meeting.Sentences?.Select(s => $"[{s.SpeakerName}]: {s.Text}") ?? []);
+
+        // Create simplified payload
+        var meetingPayload = new
+        {
+            webhook = payload,
+            meeting = new
+            {
+                id = meeting.Id,
+                title = meeting.Title,
+                dateString = meeting.DateString,
+                duration = meeting.Duration,
+                participants = meeting.Sentences?.Select(s => s.SpeakerName).Distinct(),
+                sentenceCount = meeting.Sentences?.Count ?? 0
+            }
+        };
+
+        var receivedAt = DateTime.TryParse(meeting.DateString, out var meetingDate) 
+            ? new DateTimeOffset(meetingDate) 
+            : DateTimeOffset.UtcNow;
+
+        await _ingestionService.StoreMeeting(
+            meetingPayload,
+            webhook.AgentName,
+            transcriptText,
+            receivedAt,
+            ct);
+
+        return true;
+    }
+
+    private async Task<bool> ProcessGitHubRelease(WebhookMessage webhook, CancellationToken ct)
+    {
+        var payload = JsonSerializer.Deserialize<JsonElement>(
+            webhook.NotificationData.GetRawText());
+
+        // Extract key release info
+        var releasePayload = new
+        {
+            action = payload.TryGetProperty("action", out var action) ? action.GetString() : null,
+            release = payload.TryGetProperty("release", out var release) ? new
+            {
+                id = release.TryGetProperty("id", out var id) ? id.GetInt64() : 0,
+                tagName = release.TryGetProperty("tag_name", out var tag) ? tag.GetString() : null,
+                name = release.TryGetProperty("name", out var name) ? name.GetString() : null,
+                body = release.TryGetProperty("body", out var body) ? body.GetString() : null,
+                htmlUrl = release.TryGetProperty("html_url", out var url) ? url.GetString() : null,
+                prerelease = release.TryGetProperty("prerelease", out var pre) ? pre.GetBoolean() : false,
+                publishedAt = release.TryGetProperty("published_at", out var pub) ? pub.GetString() : null,
+                author = release.TryGetProperty("author", out var auth) && auth.TryGetProperty("login", out var login) 
+                    ? login.GetString() : null
+            } : null,
+            repository = payload.TryGetProperty("repository", out var repo) ? new
+            {
+                fullName = repo.TryGetProperty("full_name", out var fn) ? fn.GetString() : null,
+                htmlUrl = repo.TryGetProperty("html_url", out var rUrl) ? rUrl.GetString() : null
+            } : null
+        };
+
+        var publishedAt = !string.IsNullOrEmpty(releasePayload.release?.publishedAt) &&
+                          DateTimeOffset.TryParse(releasePayload.release.publishedAt, out var parsed)
+            ? parsed
+            : webhook.ReceivedAt;
+
+        await _ingestionService.StoreGitHubRelease(
+            releasePayload,
+            webhook.AgentName,
+            publishedAt,
+            ct);
+
         return true;
     }
 
     private async Task<bool> ProcessGenericWebhook(WebhookMessage webhook, CancellationToken ct)
     {
-        // Store raw webhook data in Items table
-        var rowKey = $"{webhook.Source}-{webhook.Type}-{Guid.NewGuid():N}";
-        var rawData = webhook.NotificationData.GetRawText();
-        
-        var entity = new TableEntity(webhook.Type, rowKey)
-        {
-            { "AgentName", webhook.AgentName },
-            { "SourceType", $"{webhook.Source}-{webhook.Type}" },
-            { "Source", webhook.Source },
-            { "RawData", rawData },
-            { "WebhookUrl", webhook.WebhookUrl },
-            { "ReceivedAt", webhook.ReceivedAt },
-            { "IngestedAt", DateTimeOffset.UtcNow }
-        };
+        // Store full webhook payload as-is
+        var payload = JsonSerializer.Deserialize<JsonElement>(
+            webhook.NotificationData.GetRawText());
 
-        await _itemsTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
-
-        _logger.LogInformation(
-            "Stored {Source}/{Type} webhook for {Agent}: {RowKey}",
-            webhook.Source, webhook.Type, webhook.AgentName, rowKey);
+        await _ingestionService.StoreGeneric(
+            payload,
+            webhook.Source,
+            webhook.Type,
+            webhook.AgentName,
+            webhook.ReceivedAt,
+            ct);
 
         return true;
     }

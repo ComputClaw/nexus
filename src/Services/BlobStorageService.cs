@@ -12,9 +12,11 @@ public sealed class BlobStorageService
 {
     private readonly BlobContainerClient _transcriptContainer;
     private readonly BlobContainerClient _emailContainer;
+    private readonly BlobServiceClient _blobService;
 
     public BlobStorageService(BlobServiceClient blobService)
     {
+        _blobService = blobService;
         _transcriptContainer = blobService.GetBlobContainerClient("transcripts");
         _emailContainer = blobService.GetBlobContainerClient("email-bodies");
     }
@@ -26,6 +28,29 @@ public sealed class BlobStorageService
     {
         await _transcriptContainer.CreateIfNotExistsAsync();
         await _emailContainer.CreateIfNotExistsAsync();
+    }
+
+    /// <summary>
+    /// Store text content in blob storage with date-based path.
+    /// </summary>
+    public async Task<string> StoreTextContent(
+        string content,
+        string containerName,
+        string prefix,
+        string extension,
+        CancellationToken ct)
+    {
+        var container = _blobService.GetBlobContainerClient(containerName);
+        await container.CreateIfNotExistsAsync(cancellationToken: ct);
+
+        var date = DateTimeOffset.UtcNow;
+        var contentHash = HashId(content);
+        var blobName = $"{date:yyyy-MM}/{prefix}-{contentHash}.{extension}";
+
+        var blob = container.GetBlobClient(blobName);
+        await blob.UploadAsync(BinaryData.FromString(content), overwrite: true, ct);
+
+        return $"{containerName}/{blobName}";
     }
 
     /// <summary>
