@@ -18,6 +18,7 @@ public sealed class WebhookProcessorFunction
     private readonly EmailIngestionService _emailService;
     private readonly CalendarIngestionService _calendarService;
     private readonly MeetingIngestionService _meetingService;
+    private readonly OpenClawService _openClawService;
     private readonly TableClient _itemsTable;
     private readonly ILogger<WebhookProcessorFunction> _logger;
 
@@ -26,6 +27,7 @@ public sealed class WebhookProcessorFunction
         EmailIngestionService emailService,
         CalendarIngestionService calendarService,
         MeetingIngestionService meetingService,
+        OpenClawService openClawService,
         TableServiceClient tableService,
         ILogger<WebhookProcessorFunction> logger,
         FirefliesService? firefliesService = null)
@@ -35,6 +37,7 @@ public sealed class WebhookProcessorFunction
         _emailService = emailService;
         _calendarService = calendarService;
         _meetingService = meetingService;
+        _openClawService = openClawService;
         _itemsTable = tableService.GetTableClient("Items");
         _logger = logger;
     }
@@ -102,9 +105,34 @@ public sealed class WebhookProcessorFunction
             return false;
         }
 
-        // Process with agent info
+        // Process with agent info (stores in Items table)
         await _emailService.Process(message, notification.ChangeType, webhook.AgentName, ct);
+
+        // Notify agent via OpenClaw
+        var task = FormatEmailTask(message, notification.ChangeType);
+        await _openClawService.SpawnSession(webhook.AgentName, webhook.Source, task, ct);
+
         return true;
+    }
+
+    private static string FormatEmailTask(Microsoft.Graph.Models.Message message, string changeType)
+    {
+        var direction = message.From?.EmailAddress?.Address?.Contains("@muneris.") == true 
+            ? "outbound" : "inbound";
+        var bodyPreview = message.BodyPreview?.Length > 500 
+            ? message.BodyPreview[..500] + "..." 
+            : message.BodyPreview;
+
+        return $"""
+            Process {direction} email ({changeType}):
+            From: {message.From?.EmailAddress?.Address}
+            To: {string.Join(", ", (message.ToRecipients ?? []).Select(r => r.EmailAddress?.Address))}
+            Subject: {message.Subject}
+            Received: {message.ReceivedDateTime}
+
+            Preview:
+            {bodyPreview}
+            """;
     }
 
     private async Task<bool> ProcessGraphCalendar(WebhookMessage webhook, CancellationToken ct)
@@ -126,9 +154,33 @@ public sealed class WebhookProcessorFunction
             return false;
         }
 
-        // Process with agent info
+        // Process with agent info (stores in Items table)
         await _calendarService.Process(calendarEvent, notification.ChangeType, webhook.AgentName, ct);
+
+        // Notify agent via OpenClaw
+        var task = FormatCalendarTask(calendarEvent, notification.ChangeType);
+        await _openClawService.SpawnSession(webhook.AgentName, webhook.Source, task, ct);
+
         return true;
+    }
+
+    private static string FormatCalendarTask(Microsoft.Graph.Models.Event evt, string changeType)
+    {
+        var attendees = string.Join(", ", (evt.Attendees ?? [])
+            .Select(a => a.EmailAddress?.Address));
+
+        return $"""
+            Process calendar event ({changeType}):
+            Subject: {evt.Subject}
+            Organizer: {evt.Organizer?.EmailAddress?.Address}
+            Start: {evt.Start?.DateTime}
+            End: {evt.End?.DateTime}
+            Location: {evt.Location?.DisplayName}
+            Attendees: {attendees}
+
+            Body:
+            {evt.BodyPreview}
+            """;
     }
 
     private async Task<bool> ProcessFirefliesMeeting(WebhookMessage webhook, CancellationToken ct)
@@ -165,12 +217,14 @@ public sealed class WebhookProcessorFunction
     {
         // Store raw webhook data in Items table
         var rowKey = $"{webhook.Source}-{webhook.Type}-{Guid.NewGuid():N}";
+        var rawData = webhook.NotificationData.GetRawText();
+        
         var entity = new TableEntity(webhook.Type, rowKey)
         {
             { "AgentName", webhook.AgentName },
             { "SourceType", $"{webhook.Source}-{webhook.Type}" },
             { "Source", webhook.Source },
-            { "RawData", webhook.NotificationData.GetRawText() },
+            { "RawData", rawData },
             { "WebhookUrl", webhook.WebhookUrl },
             { "ReceivedAt", webhook.ReceivedAt },
             { "IngestedAt", DateTimeOffset.UtcNow }
@@ -181,6 +235,15 @@ public sealed class WebhookProcessorFunction
         _logger.LogInformation(
             "Stored {Source}/{Type} webhook for {Agent}: {RowKey}",
             webhook.Source, webhook.Type, webhook.AgentName, rowKey);
+
+        // Notify agent via OpenClaw
+        var task = $"""
+            Process {webhook.Source} {webhook.Type} notification:
+            
+            Raw data:
+            {rawData}
+            """;
+        await _openClawService.SpawnSession(webhook.AgentName, webhook.Source, task, ct);
 
         return true;
     }

@@ -55,6 +55,9 @@ var host = new HostBuilder()
         services.AddSingleton<CalendarIngestionService>();
         services.AddSingleton<MeetingIngestionService>();
         services.AddSingleton<SubscriptionService>();
+
+        // OpenClaw integration
+        services.AddHttpClient<OpenClawService>();
     })
     .Build();
 
