@@ -33,7 +33,8 @@ public sealed class WebhookRelayFunction
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["graph"] = new(StringComparer.OrdinalIgnoreCase) { "email", "calendar" },
-            ["fireflies"] = new(StringComparer.OrdinalIgnoreCase) { "meeting" }
+            ["fireflies"] = new(StringComparer.OrdinalIgnoreCase) { "meeting" },
+            ["putio"] = new(StringComparer.OrdinalIgnoreCase) { "download" }
         };
 
     public WebhookRelayFunction(
@@ -108,6 +109,11 @@ public sealed class WebhookRelayFunction
                 {
                     return req.CreateResponse(HttpStatusCode.Unauthorized);
                 }
+            }
+            else
+            {
+                // Generic webhook processing (putio, etc.)
+                await ProcessGenericWebhook(req, body, agentName, source, type, ct);
             }
         }
         catch (JsonException ex)
@@ -201,5 +207,27 @@ public sealed class WebhookRelayFunction
 
         _logger.LogInformation("Enqueued {Source}/{Type} for {Agent}", source, type, agentName);
         return true;
+    }
+
+    private async Task ProcessGenericWebhook(
+        HttpRequestData req, string body,
+        string agentName, string source, string type,
+        CancellationToken ct)
+    {
+        // Generic webhook - just enqueue the raw payload
+        var webhookMessage = new WebhookMessage
+        {
+            AgentName = agentName,
+            Source = source,
+            Type = type,
+            WebhookUrl = req.Url.ToString(),
+            NotificationData = JsonDocument.Parse(body).RootElement.Clone(),
+            ReceivedAt = DateTime.UtcNow
+        };
+
+        var queueMsg = JsonSerializer.Serialize(webhookMessage);
+        await _queues.WebhookQueue.SendMessageAsync(queueMsg, ct);
+
+        _logger.LogInformation("Enqueued {Source}/{Type} for {Agent}", source, type, agentName);
     }
 }

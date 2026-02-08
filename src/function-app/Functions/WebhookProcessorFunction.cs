@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Azure.Data.Tables;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
@@ -17,6 +18,7 @@ public sealed class WebhookProcessorFunction
     private readonly EmailIngestionService _emailService;
     private readonly CalendarIngestionService _calendarService;
     private readonly MeetingIngestionService _meetingService;
+    private readonly TableClient _itemsTable;
     private readonly ILogger<WebhookProcessorFunction> _logger;
 
     public WebhookProcessorFunction(
@@ -24,6 +26,7 @@ public sealed class WebhookProcessorFunction
         EmailIngestionService emailService,
         CalendarIngestionService calendarService,
         MeetingIngestionService meetingService,
+        TableServiceClient tableService,
         ILogger<WebhookProcessorFunction> logger,
         FirefliesService? firefliesService = null)
     {
@@ -32,6 +35,7 @@ public sealed class WebhookProcessorFunction
         _emailService = emailService;
         _calendarService = calendarService;
         _meetingService = meetingService;
+        _itemsTable = tableService.GetTableClient("Items");
         _logger = logger;
     }
 
@@ -59,6 +63,7 @@ public sealed class WebhookProcessorFunction
                 ("graph", "email") => await ProcessGraphEmail(webhook, ct),
                 ("graph", "calendar") => await ProcessGraphCalendar(webhook, ct),
                 ("fireflies", "meeting") => await ProcessFirefliesMeeting(webhook, ct),
+                ("putio", "download") => await ProcessGenericWebhook(webhook, ct),
                 _ => throw new NotSupportedException($"Unknown source/type: {webhook.Source}/{webhook.Type}")
             };
 
@@ -153,6 +158,30 @@ public sealed class WebhookProcessorFunction
 
         // Process with agent info
         await _meetingService.Process(meeting, webhook.AgentName, ct);
+        return true;
+    }
+
+    private async Task<bool> ProcessGenericWebhook(WebhookMessage webhook, CancellationToken ct)
+    {
+        // Store raw webhook data in Items table
+        var rowKey = $"{webhook.Source}-{webhook.Type}-{Guid.NewGuid():N}";
+        var entity = new TableEntity(webhook.Type, rowKey)
+        {
+            { "AgentName", webhook.AgentName },
+            { "SourceType", $"{webhook.Source}-{webhook.Type}" },
+            { "Source", webhook.Source },
+            { "RawData", webhook.NotificationData.GetRawText() },
+            { "WebhookUrl", webhook.WebhookUrl },
+            { "ReceivedAt", webhook.ReceivedAt },
+            { "IngestedAt", DateTimeOffset.UtcNow }
+        };
+
+        await _itemsTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
+
+        _logger.LogInformation(
+            "Stored {Source}/{Type} webhook for {Agent}: {RowKey}",
+            webhook.Source, webhook.Type, webhook.AgentName, rowKey);
+
         return true;
     }
 }
