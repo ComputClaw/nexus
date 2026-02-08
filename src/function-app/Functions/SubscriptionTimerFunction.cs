@@ -5,7 +5,7 @@ using Nexus.Ingest.Services;
 namespace Nexus.Ingest.Functions;
 
 /// <summary>
-/// Timer trigger: renews Graph subscriptions every 5 days (well before 7-day expiry).
+/// Timer trigger: renews Graph subscriptions daily at 08:00 UTC.
 /// </summary>
 public sealed class SubscriptionTimerFunction
 {
@@ -22,7 +22,7 @@ public sealed class SubscriptionTimerFunction
 
     [Function("SubscriptionRenewal")]
     public async Task Run(
-        [TimerTrigger("0 0 8 */5 * *")] TimerInfo timer,
+        [TimerTrigger("0 0 8 * * *")] TimerInfo timer,
         CancellationToken ct)
     {
         _logger.LogInformation("Starting subscription renewal check");
