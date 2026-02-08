@@ -53,6 +53,12 @@ var host = new HostBuilder()
         services.AddSingleton<SimpleIngestionService>();
         services.AddSingleton<SubscriptionService>();
         
+        // Feed management services
+        services.AddSingleton<FeedManagementService>();
+        
+        // HTTP client for feed fetching
+        services.AddHttpClient<AtomFeedService>();
+        
         // Legacy services (TODO: Remove after migration)
         services.AddSingleton<WhitelistService>();
         services.AddSingleton<EmailIngestionService>();
@@ -61,8 +67,11 @@ var host = new HostBuilder()
     })
     .Build();
 
-// Initialize blob containers at startup (once, not per-request)
+// Initialize services at startup (once, not per-request)
 var blobService = host.Services.GetRequiredService<BlobStorageService>();
 await blobService.InitializeAsync();
+
+var feedManagementService = host.Services.GetRequiredService<FeedManagementService>();
+await feedManagementService.InitializeAsync();
 
 await host.RunAsync();
