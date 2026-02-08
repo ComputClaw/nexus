@@ -1,73 +1,78 @@
 # Nexus
 
-Integration service for [OpenClaw](https://github.com/openclaw/openclaw) agents.
+Webhook relay service for OpenClaw agents. Receives webhooks from external systems, enriches data, and stores for agent consumption.
 
 ## Architecture
 
-Nexus has two sides: a **Function App** running in the cloud and a **Worker** running locally on the OpenClaw host.
-
 ```
-                          Cloud                              Local (OpenClaw host)
-                 ┌─────────────────────┐            ┌──────────────────────────┐
-External         │   Function App      │            │        Worker            │
-Services ──────▶ │   (Azure Functions)  │            │                          │
-                 │                      │◀───────────│  session_upload job      │
-                 │   Blob + Table       │   POST     │  (future jobs...)        │
-                 │   Storage            │            │                          │
-                 └─────────────────────┘            └──────────────────────────┘
-```
-
-### Function App
-
-C# .NET 8 Azure Functions that receive data via HTTP and store it in Azure Blob + Table Storage. This is the API layer — it accepts webhooks and session uploads, validates them, and writes to storage.
-
-- **Runtime:** C# .NET 8, Azure Functions v4
-- **Storage:** Azure Blob Storage (transcripts) + Table Storage (metadata)
-- **Source:** `src/function-app/`
-
-### Worker
-
-Python process running on the OpenClaw host. Runs one or more jobs on a schedule. Each job has its own type, interval, and configuration defined in `config.json`.
-
-- **Runtime:** Python 3, invoked as `python -m worker` from `src/`
-- **Source:** `src/worker/`
-
-**CLI:**
-
-```
-python -m worker                              # run scheduler loop
-python -m worker --job session-upload          # run one job and exit
-python -m worker --config /path/to/config.json # custom config path
-python -m worker --verbose                     # enable debug logging
+External Systems                 Nexus (Azure Functions)              Agents
+─────────────────               ─────────────────────────            ────────
+Microsoft Graph ──────────────▶ POST /api/webhook/{agent}/graph/email
+                                POST /api/webhook/{agent}/graph/calendar
+                                                                      
+put.io          ──────────────▶ POST /api/webhook/{agent}/putio/download
+                                                                      
+Fireflies       ──────────────▶ POST /api/webhook/{agent}/fireflies/meeting
+                                        │
+                                        ▼
+                                ┌───────────────┐
+                                │ Items Table   │◀──── Agents poll here
+                                │ (+ Blob refs) │
+                                └───────────────┘
 ```
 
-**How jobs work:** The scheduler loops every 60 seconds, checking each enabled job. If a job's `intervalMinutes` has elapsed since its last run, it executes. Each job extends the `Job` base class and implements `run()`, which returns a `JobResult` with success/failure, message, and error details. Jobs are registered by type in `scheduler.py`.
-
-**Current jobs:**
-
-| Type | Description |
-|------|-------------|
-| `session_upload` | Finds completed session transcripts, uploads them to Nexus, and archives the files |
-
-## Status
-
-- **Sessions** — Live
-- **Worker** — Implemented (pending deployment)
-- **Webhooks** — Designed
-
-## Project Structure
+## Endpoint
 
 ```
-nexus/
-├── src/function-app/      # Azure Functions (C# .NET 8)
-├── src/worker/            # Worker + jobs (Python)
-├── specs/                 # Development specifications
-└── README.md
+POST /api/webhook/{agentName}/{source}/{type}?code={functionKey}
 ```
 
-## Documentation
+**Path parameters:**
+- `agentName` — Target agent (e.g., `stewardclaw`, `flickclaw`)
+- `source` — External system (e.g., `graph`, `putio`, `fireflies`)
+- `type` — Data type (e.g., `email`, `calendar`, `download`, `meeting`)
 
-- **[specs/](specs/)** — Development specifications
+**Supported combinations:**
+| Source | Type | Description |
+|--------|------|-------------|
+| `graph` | `email` | Microsoft Graph inbox/sent items |
+| `graph` | `calendar` | Microsoft Graph calendar events |
+| `putio` | `download` | put.io download completions |
+| `fireflies` | `meeting` | Meeting transcripts |
+
+## Storage
+
+**Items Table** — Structured metadata with agent routing:
+- `PartitionKey` — Type (e.g., `email`, `calendar`, `download`)
+- `RowKey` — Unique item ID
+- `AgentName` — Target agent
+- `SourceType` — e.g., `graph-email`, `putio-download`
+- Type-specific fields (subject, from, to, etc.)
+
+**Blob Storage** — Large content (email bodies, transcripts)
+
+## Infrastructure
+
+- **Function App:** `nexusassistant.azurewebsites.net`
+- **Storage:** `nexusassistantstorage`
+- **Resource Group:** `OpenClaw`
+- **Region:** West Europe
+
+## Graph Subscriptions
+
+Graph webhooks require active subscriptions. The `SubscriptionRenewal` timer runs daily at 08:00 UTC to renew tracked subscriptions before expiry.
+
+Subscriptions are stored in the `Subscriptions` table for lifecycle management.
+
+## Deployment
+
+Push to `main` triggers GitHub Actions deployment.
+
+```bash
+git push origin main
+```
+
+Or trigger manually via workflow dispatch.
 
 ## License
 
