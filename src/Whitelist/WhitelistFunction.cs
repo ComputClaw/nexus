@@ -3,10 +3,12 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
-using Nexus.Ingest.Services;
 
-namespace Nexus.Ingest.Functions;
+namespace Nexus.Ingest.Whitelist;
 
+/// <summary>
+/// HTTP-triggered function that manages the sender whitelist for filtering inbound webhooks.
+/// </summary>
 public sealed class WhitelistFunction
 {
     private readonly WhitelistService _whitelistService;

@@ -2,7 +2,7 @@ using Azure;
 using Azure.Data.Tables;
 using Nexus.Ingest.Models;
 
-namespace Nexus.Ingest.Services;
+namespace Nexus.Ingest.Whitelist;
 
 public sealed class WhitelistService
 {

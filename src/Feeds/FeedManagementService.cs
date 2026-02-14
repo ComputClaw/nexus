@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
 
-namespace Nexus.Ingest.Services;
+namespace Nexus.Ingest.Feeds;
 
 /// <summary>
 /// Service for managing feed configurations in Azure Table Storage.
@@ -35,7 +35,7 @@ public sealed class FeedManagementService
 
         // Allow configuration override for valid agents
         var configuredAgents = config["ValidAgents"]?.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        _validAgents = configuredAgents?.Length > 0 
+        _validAgents = configuredAgents?.Length > 0
             ? new HashSet<string>(configuredAgents, StringComparer.OrdinalIgnoreCase)
             : DefaultValidAgents;
 
@@ -56,7 +56,7 @@ public sealed class FeedManagementService
     /// Create a new feed configuration.
     /// </summary>
     public async Task<FeedResponse> CreateFeedAsync(
-        CreateFeedRequest request, 
+        CreateFeedRequest request,
         CancellationToken ct = default)
     {
         // Validate the request
@@ -67,7 +67,7 @@ public sealed class FeedManagementService
         }
 
         // Generate ID if not provided
-        var feedId = !string.IsNullOrWhiteSpace(request.Id) 
+        var feedId = !string.IsNullOrWhiteSpace(request.Id)
             ? SanitizeFeedId(request.Id)
             : GenerateFeedId(request.FeedUrl, request.SourceType);
 
@@ -87,7 +87,7 @@ public sealed class FeedManagementService
         try
         {
             await _feedConfigsTable.UpsertEntityAsync(feedConfig, TableUpdateMode.Replace, ct);
-            
+
             _logger.LogInformation(
                 "Created feed {FeedId}: {FeedUrl} → {AgentName} ({SourceType})",
                 feedId, request.FeedUrl, request.AgentName, request.SourceType);
@@ -109,7 +109,7 @@ public sealed class FeedManagementService
         try
         {
             var feeds = new List<FeedResponse>();
-            
+
             await foreach (var entity in _feedConfigsTable.QueryAsync<FeedConfig>(
                 filter: $"PartitionKey eq 'feed'",
                 cancellationToken: ct))
@@ -143,7 +143,7 @@ public sealed class FeedManagementService
         try
         {
             var response = await _feedConfigsTable.DeleteEntityAsync("feed", feedId, cancellationToken: ct);
-            
+
             _logger.LogInformation("Deleted feed {FeedId}", feedId);
             return true;
         }
@@ -225,7 +225,7 @@ public sealed class FeedManagementService
         try
         {
             var feeds = new List<FeedConfig>();
-            
+
             await foreach (var entity in _feedConfigsTable.QueryAsync<FeedConfig>(
                 filter: $"PartitionKey eq 'feed' and Enabled eq true",
                 cancellationToken: ct))
@@ -246,8 +246,8 @@ public sealed class FeedManagementService
     /// Toggle a feed's enabled status.
     /// </summary>
     public async Task<FeedResponse?> SetFeedEnabledAsync(
-        string feedId, 
-        bool enabled, 
+        string feedId,
+        bool enabled,
         CancellationToken ct = default)
     {
         try
@@ -333,10 +333,10 @@ public sealed class FeedManagementService
             var uri = new Uri(feedUrl);
             var host = uri.Host.Replace("www.", "");
             var pathPart = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-            
+
             var basePart = string.IsNullOrEmpty(pathPart) ? host : $"{host}-{pathPart}";
             var id = $"{basePart}-{sourceType}";
-            
+
             return SanitizeFeedId(id);
         }
         catch
@@ -357,14 +357,14 @@ public sealed class FeedManagementService
 
     private static bool IsValidFeedId(string id)
     {
-        return !string.IsNullOrWhiteSpace(id) && 
+        return !string.IsNullOrWhiteSpace(id) &&
                Regex.IsMatch(id, @"^[a-zA-Z0-9\-]+$") &&
                id.Length <= 100;
     }
 
     private static bool IsValidSourceType(string sourceType)
     {
-        return !string.IsNullOrWhiteSpace(sourceType) && 
+        return !string.IsNullOrWhiteSpace(sourceType) &&
                Regex.IsMatch(sourceType, @"^[a-zA-Z0-9\-]+$") &&
                sourceType.Length <= 50;
     }

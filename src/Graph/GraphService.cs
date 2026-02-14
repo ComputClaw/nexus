@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 
-namespace Nexus.Ingest.Services;
+namespace Nexus.Ingest.Graph;
 
 /// <summary>
 /// Thin wrapper around Microsoft Graph SDK for fetching mail and calendar resources.

@@ -4,7 +4,7 @@ using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
 
-namespace Nexus.Ingest.Services;
+namespace Nexus.Ingest.Feeds;
 
 /// <summary>
 /// Service for fetching and parsing Atom/RSS feeds.
@@ -19,7 +19,7 @@ public sealed class AtomFeedService
     private static readonly string[] DateFormats = new[]
     {
         "yyyy-MM-ddTHH:mm:ssZ",
-        "yyyy-MM-ddTHH:mm:ss.fffffffZ", 
+        "yyyy-MM-ddTHH:mm:ss.fffffffZ",
         "yyyy-MM-ddTHH:mm:ss.fZ",
         "yyyy-MM-ddTHH:mm:sszzz",
         "yyyy-MM-ddTHH:mm:ss.fffffffzzz",
@@ -33,9 +33,9 @@ public sealed class AtomFeedService
     {
         _httpClient = httpClient;
         _logger = logger;
-        
+
         // Configure HTTP client for feed fetching
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", 
+        _httpClient.DefaultRequestHeaders.Add("User-Agent",
             "Nexus-Feed-Monitor/1.0 (+https://github.com/ComputClaw/nexus)");
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
@@ -44,7 +44,7 @@ public sealed class AtomFeedService
     /// Fetch and parse a feed, returning entries newer than the specified entry ID.
     /// </summary>
     public async Task<List<AtomEntry>> FetchNewEntries(
-        FeedConfig feedConfig, 
+        FeedConfig feedConfig,
         CancellationToken ct = default)
     {
         try
@@ -65,7 +65,7 @@ public sealed class AtomFeedService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "HTTP error fetching feed {FeedId}: {FeedUrl}", 
+            _logger.LogError(ex, "HTTP error fetching feed {FeedId}: {FeedUrl}",
                 feedConfig.Id, feedConfig.FeedUrl);
             throw new FeedFetchException($"Failed to fetch feed: {ex.Message}", ex);
         }
@@ -81,7 +81,7 @@ public sealed class AtomFeedService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error parsing feed {FeedId}: {FeedUrl}", 
+            _logger.LogError(ex, "Error parsing feed {FeedId}: {FeedUrl}",
                 feedConfig.Id, feedConfig.FeedUrl);
             throw new FeedParseException($"Failed to parse feed: {ex.Message}", ex);
         }
@@ -91,14 +91,14 @@ public sealed class AtomFeedService
     /// Validate that a feed URL is accessible and parseable.
     /// </summary>
     public async Task<FeedValidationResult> ValidateFeed(
-        string feedUrl, 
+        string feedUrl,
         CancellationToken ct = default)
     {
         try
         {
             _logger.LogDebug("Validating feed URL: {FeedUrl}", feedUrl);
 
-            if (!Uri.TryCreate(feedUrl, UriKind.Absolute, out var uri) || 
+            if (!Uri.TryCreate(feedUrl, UriKind.Absolute, out var uri) ||
                 (uri.Scheme != "http" && uri.Scheme != "https"))
             {
                 return FeedValidationResult.Invalid("URL must be a valid HTTP or HTTPS URL");
@@ -114,7 +114,7 @@ public sealed class AtomFeedService
             }
 
             var entries = ParseFeed(document, feedUrl);
-            
+
             return FeedValidationResult.Valid(feedType, entries.Count);
         }
         catch (HttpRequestException ex)
@@ -134,7 +134,7 @@ public sealed class AtomFeedService
     private List<AtomEntry> ParseFeed(XDocument document, string feedUrl)
     {
         var feedType = DetectFeedType(document);
-        
+
         return feedType switch
         {
             FeedType.Atom => ParseAtomFeed(document),
@@ -167,7 +167,7 @@ public sealed class AtomFeedService
         var entries = new List<AtomEntry>();
 
         var entryElements = document.Descendants(atomNs + "entry");
-        
+
         foreach (var entryElement in entryElements)
         {
             try
@@ -232,8 +232,8 @@ public sealed class AtomFeedService
     }
 
     private List<AtomEntry> FilterNewEntries(
-        List<AtomEntry> allEntries, 
-        string? lastEntryId, 
+        List<AtomEntry> allEntries,
+        string? lastEntryId,
         DateTimeOffset? lastEntryPublished)
     {
         if (string.IsNullOrEmpty(lastEntryId))
@@ -243,7 +243,7 @@ public sealed class AtomFeedService
         }
 
         var newEntries = new List<AtomEntry>();
-        
+
         foreach (var entry in allEntries)
         {
             // Stop when we reach the last processed entry
@@ -335,7 +335,7 @@ public sealed class AtomFeedService
         // Try each known format
         foreach (var format in DateFormats)
         {
-            if (DateTimeOffset.TryParseExact(dateString, format, CultureInfo.InvariantCulture, 
+            if (DateTimeOffset.TryParseExact(dateString, format, CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out result))
             {
                 return result;

@@ -5,7 +5,12 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Graph;
+using Nexus.Ingest.Feeds;
+using Nexus.Ingest.Graph;
 using Nexus.Ingest.Services;
+using Nexus.Ingest.Webhooks.Processors;
+using Nexus.Ingest.Webhooks.Relays;
+using Nexus.Ingest.Whitelist;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
@@ -50,20 +55,30 @@ var host = new HostBuilder()
         // Application services
         services.AddSingleton<BlobStorageService>();
         services.AddSingleton<GraphService>();
-        services.AddSingleton<SimpleIngestionService>();
+        services.AddSingleton<IngestionService>();
         services.AddSingleton<SubscriptionService>();
-        
+
         // Feed management services
         services.AddSingleton<FeedManagementService>();
-        
+
         // HTTP client for feed fetching
         services.AddHttpClient<AtomFeedService>();
-        
+
+        // Webhook relays
+        services.AddSingleton<IWebhookRelay, GraphWebhookRelay>();
+        services.AddSingleton<IWebhookRelay, FirefliesWebhookRelay>();
+        services.AddSingleton<IWebhookRelay, GitHubWebhookRelay>();
+        services.AddSingleton<IWebhookRelay, GenericWebhookRelay>();
+
+        // Webhook processors
+        services.AddSingleton<IWebhookProcessor, GraphEmailProcessor>();
+        services.AddSingleton<IWebhookProcessor, GraphCalendarProcessor>();
+        services.AddSingleton<IWebhookProcessor, FirefliesMeetingProcessor>();
+        services.AddSingleton<IWebhookProcessor, GitHubReleaseProcessor>();
+        services.AddSingleton<IWebhookProcessor, GenericWebhookProcessor>();
+
         // Legacy services (TODO: Remove after migration)
         services.AddSingleton<WhitelistService>();
-        services.AddSingleton<EmailIngestionService>();
-        services.AddSingleton<CalendarIngestionService>();
-        services.AddSingleton<MeetingIngestionService>();
     })
     .Build();
 

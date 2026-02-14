@@ -1,7 +1,7 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
-namespace Nexus.Ingest.Functions;
+namespace Nexus.Ingest.Webhooks;
 
 /// <summary>
 /// Poison queue handlers: log failed messages for observability.

@@ -1,8 +1,7 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using Nexus.Ingest.Services;
 
-namespace Nexus.Ingest.Functions;
+namespace Nexus.Ingest.Graph;
 
 /// <summary>
 /// Timer trigger: renews Graph subscriptions daily at 08:00 UTC.

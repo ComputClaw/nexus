@@ -2,23 +2,23 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Services;
 
-namespace Nexus.Ingest.Functions;
+namespace Nexus.Ingest.Feeds;
 
 /// <summary>
 /// Timer-triggered function that polls configured Atom/RSS feeds for new entries.
-/// Processes all enabled feeds and stores new entries via SimpleIngestionService.
+/// Processes all enabled feeds and stores new entries via IngestionService.
 /// </summary>
 public sealed class AtomFeedPollerFunction
 {
     private readonly FeedManagementService _feedManagementService;
     private readonly AtomFeedService _atomFeedService;
-    private readonly SimpleIngestionService _ingestionService;
+    private readonly IngestionService _ingestionService;
     private readonly ILogger<AtomFeedPollerFunction> _logger;
 
     public AtomFeedPollerFunction(
         FeedManagementService feedManagementService,
         AtomFeedService atomFeedService,
-        SimpleIngestionService ingestionService,
+        IngestionService ingestionService,
         ILogger<AtomFeedPollerFunction> logger)
     {
         _feedManagementService = feedManagementService;
@@ -70,7 +70,7 @@ public sealed class AtomFeedPollerFunction
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, 
+                    _logger.LogError(ex,
                         "Failed to process feed {FeedId} ({FeedUrl}): {Error}",
                         feed.Id, feed.FeedUrl, ex.Message);
 
@@ -88,7 +88,7 @@ public sealed class AtomFeedPollerFunction
         }
 
         var duration = DateTimeOffset.UtcNow - startTime;
-        
+
         _logger.LogInformation(
             "Feed polling cycle completed: {SuccessfulFeeds}/{TotalFeeds} feeds processed, " +
             "{TotalNewEntries} new entries, duration: {Duration}ms",
@@ -99,7 +99,7 @@ public sealed class AtomFeedPollerFunction
     /// Process a single feed and return the number of new entries found.
     /// </summary>
     private async Task<int> ProcessFeed(
-        Models.FeedConfig feed, 
+        Models.FeedConfig feed,
         CancellationToken ct)
     {
         _logger.LogDebug("Processing feed {FeedId}: {FeedUrl}", feed.Id, feed.FeedUrl);
@@ -151,7 +151,7 @@ public sealed class AtomFeedPollerFunction
                     }
                 };
 
-                // Store the entry via SimpleIngestionService
+                // Store the entry via IngestionService
                 var itemId = await _ingestionService.StoreItem(
                     payload,
                     feed.SourceType,
@@ -205,10 +205,10 @@ public sealed class AtomFeedPollerFunction
         if (!string.IsNullOrEmpty(entry.RawXml))
         {
             var rawXml = entry.RawXml.ToLowerInvariant();
-            if (rawXml.Contains("xmlns=\"http://www.w3.org/2005/atom\"") || 
+            if (rawXml.Contains("xmlns=\"http://www.w3.org/2005/atom\"") ||
                 rawXml.Contains("<entry"))
                 return "atom";
-            
+
             if (rawXml.Contains("<item"))
                 return "rss";
         }

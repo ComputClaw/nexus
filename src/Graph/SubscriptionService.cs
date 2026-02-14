@@ -1,13 +1,12 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Azure;
 using Azure.Data.Tables;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Nexus.Ingest.Services;
+namespace Nexus.Ingest.Graph;
 
 /// <summary>
 /// Manages Graph API subscriptions via REST (not SDK — avoids SDK serialization quirks).

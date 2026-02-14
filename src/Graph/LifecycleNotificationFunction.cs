@@ -4,9 +4,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
-using Nexus.Ingest.Services;
 
-namespace Nexus.Ingest.Functions;
+namespace Nexus.Ingest.Graph;
 
 /// <summary>
 /// Handles Graph lifecycle events: reauthorization, subscription removed, missed notifications.

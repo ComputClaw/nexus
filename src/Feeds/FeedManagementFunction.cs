@@ -4,9 +4,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
-using Nexus.Ingest.Services;
 
-namespace Nexus.Ingest.Functions;
+namespace Nexus.Ingest.Feeds;
 
 /// <summary>
 /// HTTP function for managing feed configurations.
@@ -41,7 +40,7 @@ public sealed class FeedManagementFunction
                 "POST" => await HandlePostAsync(req, ct),
                 "DELETE" => await HandleDeleteAsync(req, id, ct),
                 "PATCH" => await HandlePatchAsync(req, id, ct),
-                _ => await CreateErrorResponse(req, HttpStatusCode.MethodNotAllowed, 
+                _ => await CreateErrorResponse(req, HttpStatusCode.MethodNotAllowed,
                     $"Method {req.Method} not allowed")
             };
         }
@@ -63,7 +62,7 @@ public sealed class FeedManagementFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error in feed management");
-            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, 
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError,
                 "An unexpected error occurred");
         }
     }
@@ -72,17 +71,17 @@ public sealed class FeedManagementFunction
     /// Handle GET requests - list all feeds or get specific feed.
     /// </summary>
     private async Task<HttpResponseData> HandleGetAsync(
-        HttpRequestData req, 
-        string? id, 
+        HttpRequestData req,
+        string? id,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
             // GET /api/feeds - list all feeds
             _logger.LogInformation("Retrieving all feeds");
-            
+
             var feeds = await _feedManagementService.GetAllFeedsAsync(ct);
-            
+
             return await CreateJsonResponse(req, HttpStatusCode.OK, new
             {
                 feeds = feeds,
@@ -93,15 +92,15 @@ public sealed class FeedManagementFunction
         {
             // GET /api/feeds/{id} - get specific feed
             _logger.LogInformation("Retrieving feed {FeedId}", id);
-            
+
             var feed = await _feedManagementService.GetFeedAsync(id, ct);
-            
+
             if (feed == null)
             {
-                return await CreateErrorResponse(req, HttpStatusCode.NotFound, 
+                return await CreateErrorResponse(req, HttpStatusCode.NotFound,
                     $"Feed '{id}' not found");
             }
-            
+
             return await CreateJsonResponse(req, HttpStatusCode.OK, feed);
         }
     }
@@ -112,7 +111,7 @@ public sealed class FeedManagementFunction
     private async Task<HttpResponseData> HandlePostAsync(HttpRequestData req, CancellationToken ct)
     {
         _logger.LogInformation("Creating new feed");
-        
+
         var body = await req.ReadAsStringAsync();
         if (string.IsNullOrWhiteSpace(body))
         {
@@ -130,9 +129,9 @@ public sealed class FeedManagementFunction
         }
 
         var feed = await _feedManagementService.CreateFeedAsync(createRequest, ct);
-        
+
         _logger.LogInformation("Created feed {FeedId}", feed.Id);
-        
+
         return await CreateJsonResponse(req, HttpStatusCode.Created, feed);
     }
 
@@ -140,8 +139,8 @@ public sealed class FeedManagementFunction
     /// Handle DELETE requests - remove feed.
     /// </summary>
     private async Task<HttpResponseData> HandleDeleteAsync(
-        HttpRequestData req, 
-        string? id, 
+        HttpRequestData req,
+        string? id,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -150,16 +149,16 @@ public sealed class FeedManagementFunction
         }
 
         _logger.LogInformation("Deleting feed {FeedId}", id);
-        
+
         var deleted = await _feedManagementService.DeleteFeedAsync(id, ct);
-        
+
         if (!deleted)
         {
             return await CreateErrorResponse(req, HttpStatusCode.NotFound, $"Feed '{id}' not found");
         }
-        
+
         _logger.LogInformation("Deleted feed {FeedId}", id);
-        
+
         return await CreateJsonResponse(req, HttpStatusCode.OK, new { message = $"Feed '{id}' deleted successfully" });
     }
 
@@ -167,8 +166,8 @@ public sealed class FeedManagementFunction
     /// Handle PATCH requests - update feed properties.
     /// </summary>
     private async Task<HttpResponseData> HandlePatchAsync(
-        HttpRequestData req, 
-        string? id, 
+        HttpRequestData req,
+        string? id,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -186,24 +185,24 @@ public sealed class FeedManagementFunction
         using var document = JsonDocument.Parse(body);
         var root = document.RootElement;
 
-        if (root.TryGetProperty("enabled", out var enabledProperty) && 
+        if (root.TryGetProperty("enabled", out var enabledProperty) &&
             enabledProperty.ValueKind == JsonValueKind.True || enabledProperty.ValueKind == JsonValueKind.False)
         {
             var enabled = enabledProperty.GetBoolean();
-            
+
             _logger.LogInformation("Setting feed {FeedId} enabled = {Enabled}", id, enabled);
-            
+
             var feed = await _feedManagementService.SetFeedEnabledAsync(id, enabled, ct);
-            
+
             if (feed == null)
             {
                 return await CreateErrorResponse(req, HttpStatusCode.NotFound, $"Feed '{id}' not found");
             }
-            
+
             return await CreateJsonResponse(req, HttpStatusCode.OK, feed);
         }
 
-        return await CreateErrorResponse(req, HttpStatusCode.BadRequest, 
+        return await CreateErrorResponse(req, HttpStatusCode.BadRequest,
             "Only 'enabled' property updates are currently supported");
     }
 
@@ -211,19 +210,19 @@ public sealed class FeedManagementFunction
     /// Create a JSON response with the specified status code and data.
     /// </summary>
     private static async Task<HttpResponseData> CreateJsonResponse<T>(
-        HttpRequestData req, 
-        HttpStatusCode statusCode, 
+        HttpRequestData req,
+        HttpStatusCode statusCode,
         T data)
     {
         var response = req.CreateResponse(statusCode);
         response.Headers.Add("Content-Type", "application/json");
-        
+
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = true
         });
-        
+
         await response.WriteStringAsync(json);
         return response;
     }
@@ -232,25 +231,25 @@ public sealed class FeedManagementFunction
     /// Create an error response with the specified status code and message.
     /// </summary>
     private static async Task<HttpResponseData> CreateErrorResponse(
-        HttpRequestData req, 
-        HttpStatusCode statusCode, 
+        HttpRequestData req,
+        HttpStatusCode statusCode,
         string message)
     {
         var response = req.CreateResponse(statusCode);
         response.Headers.Add("Content-Type", "application/json");
-        
+
         var errorData = new
         {
             error = message,
             statusCode = (int)statusCode,
             timestamp = DateTimeOffset.UtcNow
         };
-        
+
         var json = JsonSerializer.Serialize(errorData, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
-        
+
         await response.WriteStringAsync(json);
         return response;
     }
