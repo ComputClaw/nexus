@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using Azure.Data.Tables;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Nexus.Ingest.Models;
 
@@ -14,33 +13,16 @@ public sealed class FeedManagementService
 {
     private readonly TableClient _feedConfigsTable;
     private readonly AtomFeedService _atomFeedService;
-    private readonly HashSet<string> _validAgents;
     private readonly ILogger<FeedManagementService> _logger;
-
-    // Valid agent names (should match WebhookRelayFunction)
-    private static readonly HashSet<string> DefaultValidAgents = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "stewardclaw", "sageclaw", "main", "flickclaw", "puzzlesclaw", "comput"
-    };
 
     public FeedManagementService(
         TableServiceClient tableService,
         AtomFeedService atomFeedService,
-        IConfiguration config,
         ILogger<FeedManagementService> logger)
     {
         _feedConfigsTable = tableService.GetTableClient("FeedConfigs");
         _atomFeedService = atomFeedService;
         _logger = logger;
-
-        // Allow configuration override for valid agents
-        var configuredAgents = config["ValidAgents"]?.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        _validAgents = configuredAgents?.Length > 0
-            ? new HashSet<string>(configuredAgents, StringComparer.OrdinalIgnoreCase)
-            : DefaultValidAgents;
-
-        _logger.LogInformation("FeedManagementService initialized with {AgentCount} valid agents: {Agents}",
-            _validAgents.Count, string.Join(", ", _validAgents));
     }
 
     /// <summary>
@@ -295,13 +277,6 @@ public sealed class FeedManagementService
 
         if (string.IsNullOrWhiteSpace(request.SourceType))
             return ValidationResult.Invalid("Source type is required");
-
-        // Validate agent name
-        if (!_validAgents.Contains(request.AgentName))
-        {
-            var validAgentsList = string.Join(", ", _validAgents.Order());
-            return ValidationResult.Invalid($"Invalid agent name. Valid agents: {validAgentsList}");
-        }
 
         // Validate source type format
         if (!IsValidSourceType(request.SourceType))

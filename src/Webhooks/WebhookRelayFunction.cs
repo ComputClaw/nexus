@@ -20,12 +20,6 @@ public sealed class WebhookRelayFunction
     private readonly QueueClientFactory _queues;
     private readonly ILogger<WebhookRelayFunction> _logger;
 
-    // Valid agent names
-    private static readonly HashSet<string> ValidAgents = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "stewardclaw", "sageclaw", "main", "flickclaw", "puzzlesclaw", "comput"
-    };
-
     public WebhookRelayFunction(
         IEnumerable<IWebhookRelay> relays,
         QueueClientFactory queues,
@@ -55,15 +49,7 @@ public sealed class WebhookRelayFunction
         string type,
         CancellationToken ct)
     {
-        // 1. Validate route parameters
-        if (!ValidAgents.Contains(agentName))
-        {
-            _logger.LogWarning("Invalid agent name: {Agent}", agentName);
-            var badRequest = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badRequest.WriteStringAsync($"Invalid agent: {agentName}", ct);
-            return badRequest;
-        }
-
+        // 1. Validate source/type
         if (!_validSourceTypes.TryGetValue(source, out var validTypes) || !validTypes.Contains(type))
         {
             _logger.LogWarning("Invalid source/type: {Source}/{Type}", source, type);
