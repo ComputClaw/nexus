@@ -54,7 +54,7 @@ public sealed class SubscriptionService
         //   PublicBaseUrl       = https://nexusassistant.azurewebsites.net (legacy/shortcut)
         var publicBaseUrl = _config["Nexus:PublicBaseUrl"]
             ?? _config["PublicBaseUrl"]
-            ?? "https://nexusassistant.azurewebsites.net";
+            ?? "https://nexusrelay.azurewebsites.net";
 
         publicBaseUrl = publicBaseUrl.TrimEnd('/');
         var baseUrl = $"{publicBaseUrl}/api/{route}";

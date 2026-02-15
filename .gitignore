@@ -9,6 +9,7 @@ publish/
 
 # Azure Functions
 local.settings.json
+*.PublishSettings
 
 # IDE
 .idea/
