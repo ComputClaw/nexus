@@ -23,7 +23,7 @@ public sealed class WebhookRelayFunction
     // Valid agent names
     private static readonly HashSet<string> ValidAgents = new(StringComparer.OrdinalIgnoreCase)
     {
-        "stewardclaw", "sageclaw", "main", "flickclaw", "puzzlesclaw"
+        "stewardclaw", "sageclaw", "main", "flickclaw", "puzzlesclaw", "comput"
     };
 
     public WebhookRelayFunction(

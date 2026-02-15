@@ -20,7 +20,7 @@ public sealed class FeedManagementService
     // Valid agent names (should match WebhookRelayFunction)
     private static readonly HashSet<string> DefaultValidAgents = new(StringComparer.OrdinalIgnoreCase)
     {
-        "stewardclaw", "sageclaw", "main", "flickclaw", "puzzlesclaw"
+        "stewardclaw", "sageclaw", "main", "flickclaw", "puzzlesclaw", "comput"
     };
 
     public FeedManagementService(
