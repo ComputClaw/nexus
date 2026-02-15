@@ -8,10 +8,9 @@
       }
     },
     "logLevel": {
-      "default": "Information",
-      "Microsoft": "Warning",
-      "Worker": "Information",
-      "Function": "Information"
+      "default": "Warning",
+      "Function": "Information",
+      "Nexus.Ingest": "Information"
     }
   },
   "extensions": {
