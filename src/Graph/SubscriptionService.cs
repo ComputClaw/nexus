@@ -42,16 +42,8 @@ public sealed class SubscriptionService
         return token.Token;
     }
 
-    /// <summary>
-    /// Build notification URL with URL-encoded function key.
-    /// Reads base URL and function key separately to avoid encoding issues.
-    /// </summary>
-    private string BuildNotificationUrl(string route)
+    private string BuildUrl(string route)
     {
-        // Use config so dev/staging/prod can differ.
-        // Examples:
-        //   Nexus:PublicBaseUrl = https://nexusassistant.azurewebsites.net
-        //   PublicBaseUrl       = https://nexusassistant.azurewebsites.net (legacy/shortcut)
         var publicBaseUrl = _config["Nexus:PublicBaseUrl"]
             ?? _config["PublicBaseUrl"]
             ?? "https://nexusrelay.azurewebsites.net";
@@ -59,7 +51,6 @@ public sealed class SubscriptionService
         publicBaseUrl = publicBaseUrl.TrimEnd('/');
         var baseUrl = $"{publicBaseUrl}/api/{route}";
 
-        // Function key is optional locally (depending on host), required in Azure.
         var functionKey = _config["FunctionKey"];
         if (!string.IsNullOrEmpty(functionKey))
         {
@@ -70,12 +61,12 @@ public sealed class SubscriptionService
         return baseUrl;
     }
 
-    public async Task<string> Create(string resource, string changeTypes, CancellationToken ct)
+    public async Task<string> Create(string resource, string changeTypes, string agentName, string webhookType, CancellationToken ct)
     {
         var token = await GetTokenAsync(ct);
 
-        var notificationUrl = BuildNotificationUrl("notifications");
-        var lifecycleUrl = BuildNotificationUrl("lifecycle");
+        var notificationUrl = BuildUrl($"webhook/{agentName}/graph/{webhookType}");
+        var lifecycleUrl = BuildUrl("lifecycle");
 
         var payload = new Dictionary<string, object?>
         {
@@ -93,10 +84,6 @@ public sealed class SubscriptionService
         using var request = new HttpRequestMessage(HttpMethod.Post, "subscriptions");
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         request.Content = JsonContent.Create(payload);
-
-        // Log the exact payload for debugging
-        var payloadJson = System.Text.Json.JsonSerializer.Serialize(payload);
-        _logger.LogInformation("Subscription payload: {Payload}", payloadJson);
 
         var response = await _httpClient.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
@@ -118,14 +105,16 @@ public sealed class SubscriptionService
         {
             { "Resource", resource },
             { "ChangeType", changeTypes },
+            { "AgentName", agentName },
+            { "WebhookType", webhookType },
             { "ExpiresAt", DateTimeOffset.Parse(expiry!) },
             { "CreatedAt", DateTimeOffset.UtcNow }
         };
         await _subscriptionTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
 
         _logger.LogInformation(
-            "Created Graph subscription {Id} for {Resource} (expires {Expiry})",
-            subscriptionId, resource, expiry);
+            "Created Graph subscription {Id} for {Resource} → {Agent}/graph/{Type} (expires {Expiry})",
+            subscriptionId, resource, agentName, webhookType, expiry);
 
         return subscriptionId;
     }
@@ -193,15 +182,18 @@ public sealed class SubscriptionService
             var entity = response.Value;
             var resource = entity.GetString("Resource");
             var changeTypes = entity.GetString("ChangeType");
+            var agentName = entity.GetString("AgentName");
+            var webhookType = entity.GetString("WebhookType");
 
-            if (string.IsNullOrEmpty(resource) || string.IsNullOrEmpty(changeTypes))
+            if (string.IsNullOrEmpty(resource) || string.IsNullOrEmpty(changeTypes)
+                || string.IsNullOrEmpty(agentName) || string.IsNullOrEmpty(webhookType))
             {
-                _logger.LogError("Cannot recreate subscription {Id}: missing resource/changeTypes", subscriptionId);
+                _logger.LogError("Cannot recreate subscription {Id}: missing required fields", subscriptionId);
                 return;
             }
 
             await _subscriptionTable.DeleteEntityAsync("subscription", subscriptionId, cancellationToken: ct);
-            await Create(resource, changeTypes, ct);
+            await Create(resource, changeTypes, agentName, webhookType, ct);
             _logger.LogInformation("Recreated subscription for {Resource}", resource);
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
