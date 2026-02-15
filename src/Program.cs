@@ -40,17 +40,17 @@ var host = new HostBuilder()
             services.AddSingleton(new GraphServiceClient(credential));
         }
 
-        // Typed HttpClient for Fireflies (IHttpClientFactory manages lifecycle)
+        // Typed HttpClient for Fireflies (always register so DI resolves; no-op if key not set)
         var firefliesKey = config["Fireflies:ApiKey"];
-        if (!string.IsNullOrEmpty(firefliesKey))
+        services.AddHttpClient<FirefliesService>(client =>
         {
-            services.AddHttpClient<FirefliesService>(client =>
+            client.BaseAddress = new Uri("https://api.fireflies.ai/graphql");
+            if (!string.IsNullOrEmpty(firefliesKey))
             {
-                client.BaseAddress = new Uri("https://api.fireflies.ai/graphql");
                 client.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", firefliesKey);
-            });
-        }
+            }
+        });
 
         // Application services
         services.AddSingleton<BlobStorageService>();
