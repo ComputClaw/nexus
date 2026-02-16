@@ -11,6 +11,7 @@ namespace Nexus.Ingest.Services;
 public sealed class IngestionService
 {
     private readonly TableClient _itemsTable;
+    private readonly TableClient _pendingTable;
     private readonly BlobStorageService _blobService;
     private readonly ILogger<IngestionService> _logger;
 
@@ -20,6 +21,7 @@ public sealed class IngestionService
         ILogger<IngestionService> logger)
     {
         _itemsTable = tableService.GetTableClient("Items");
+        _pendingTable = tableService.GetTableClient("PendingEmails");
         _blobService = blobService;
         _logger = logger;
     }
@@ -71,6 +73,47 @@ public sealed class IngestionService
         _logger.LogInformation(
             "Stored {SourceType} item for {Agent}: {ItemId}",
             item.SourceType, item.AgentName, itemId);
+
+        return itemId;
+    }
+
+    /// <summary>
+    /// Store an email from a non-whitelisted sender into PendingEmails.
+    /// PartitionKey = sender domain (so PromotePendingByDomain can find them).
+    /// </summary>
+    public async Task<string> StorePendingEmail(IngestionItem item, string senderDomain, CancellationToken ct)
+    {
+        var itemId = $"{item.SourceType}-{Guid.NewGuid():N}";
+
+        var blobPaths = new Dictionary<string, string>();
+        if (item.Blobs?.Count > 0)
+        {
+            foreach (var (key, blob) in item.Blobs)
+            {
+                var path = await _blobService.StoreTextContent(
+                    blob.Content, blob.ContainerName, blob.Prefix, blob.Extension, ct);
+                blobPaths[key] = path;
+            }
+        }
+
+        var entity = new TableEntity(senderDomain, itemId)
+        {
+            { "AgentName", item.AgentName },
+            { "SourceType", item.SourceType },
+            { "From", item.SenderEmail },
+            { "Payload", JsonSerializer.Serialize(item.Payload) },
+            { "ReceivedAt", item.ReceivedAt },
+            { "IngestedAt", DateTimeOffset.UtcNow }
+        };
+
+        foreach (var (key, path) in blobPaths)
+            entity[key] = path;
+
+        await _pendingTable.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
+
+        _logger.LogInformation(
+            "Stored pending email from {Domain} for {Agent}: {ItemId}",
+            senderDomain, item.AgentName, itemId);
 
         return itemId;
     }

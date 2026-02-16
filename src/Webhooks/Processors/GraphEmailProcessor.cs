@@ -76,7 +76,8 @@ public sealed class GraphEmailProcessor : IWebhookProcessor
             AgentName = webhook.AgentName,
             Payload = payload,
             ReceivedAt = receivedAt,
-            Blobs = blobs.Count > 0 ? blobs : null
+            Blobs = blobs.Count > 0 ? blobs : null,
+            SenderEmail = message.From?.EmailAddress?.Address
         };
     }
 }
