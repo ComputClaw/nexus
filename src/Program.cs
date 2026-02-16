@@ -86,7 +86,13 @@ var host = new HostBuilder()
 var blobService = host.Services.GetRequiredService<BlobStorageService>();
 await blobService.InitializeAsync();
 
+var ingestionService = host.Services.GetRequiredService<IngestionService>();
+await ingestionService.InitializeAsync();
+
 var feedManagementService = host.Services.GetRequiredService<FeedManagementService>();
 await feedManagementService.InitializeAsync();
+
+var whitelistService = host.Services.GetRequiredService<WhitelistService>();
+await whitelistService.InitializeAsync();
 
 await host.RunAsync();

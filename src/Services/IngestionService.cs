@@ -24,6 +24,11 @@ public sealed class IngestionService
         _logger = logger;
     }
 
+    public async Task InitializeAsync()
+    {
+        await _itemsTable.CreateIfNotExistsAsync();
+    }
+
     /// <summary>
     /// Store a processed ingestion item: persist blobs, then upsert table entity.
     /// </summary>

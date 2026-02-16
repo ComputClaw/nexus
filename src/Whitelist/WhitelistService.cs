@@ -19,6 +19,12 @@ public sealed class WhitelistService
         _itemsTable = tableService.GetTableClient("Items");
     }
 
+    public async Task InitializeAsync()
+    {
+        await _whitelistTable.CreateIfNotExistsAsync();
+        await _pendingTable.CreateIfNotExistsAsync();
+    }
+
     /// <summary>
     /// Check if a sender is whitelisted — by full email OR by domain.
     /// </summary>
